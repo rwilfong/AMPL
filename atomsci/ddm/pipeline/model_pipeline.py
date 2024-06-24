@@ -32,6 +32,7 @@ from atomsci.ddm.pipeline import featurization as feat
 from atomsci.ddm.pipeline import parameter_parser as parse
 from atomsci.ddm.pipeline import model_tracker as trkr
 from atomsci.ddm.pipeline import transformations as trans
+from atomsci.ddm.pipeline import sampling as sample
 
 logging.basicConfig(format='%(asctime)-15s %(message)s')
 
@@ -284,6 +285,9 @@ class ModelPipeline:
             for i, (train, valid) in enumerate(self.data.train_valid_dsets):
                 train = self.model_wrapper.transform_dataset(train)
                 valid = self.model_wrapper.transform_dataset(valid)
+                # sampling method 
+                if self.data.params.prediction_type == 'classification' and self.params.sampling_method is not None:
+                    train=sample.apply_sampling_method(train, params)
                 self.data.train_valid_dsets[i] = (train, valid)
             self.data.test_dset = self.model_wrapper.transform_dataset(self.data.test_dset)
 
