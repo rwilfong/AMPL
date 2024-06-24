@@ -528,6 +528,30 @@ the model will train for max_epochs regardless of validation error.|
 |*Description:*|Type of splitter to use: index, random, scaffold, butina, ave\_min, temporal, fingerprint, multitaskscaffold, or stratified. Used to set the splitting.py subclass. Can be input as a comma separated list for hyperparameter search (e.g. 'scaffold','random')|
 |*Default:*|scaffold|
 |*Type:*|str|
+
+- **sampling_method**  
+  
+|||
+|-|-|
+|*Description:*|The sampling method for addressing class imbalance in classification datasets. Options include 'undersampling' and 'SMOTE'.|
+|*Default:*|None|
+|*Type:*|str|
+
+- **sampling_ratio**  
+  
+|||
+|-|-|
+|*Description:*|The desired ratio of the minority class to the majority class after sampling (e.g., if str, 'minority', 'not minority'; if float, '0.2', '1.0'). |
+|*Default:*|auto|
+|*Type:*|str|
+
+- **sampling_k_neighbors**  
+  
+|||
+|-|-|
+|*Description:*|The number of nearest neighbors to consider when generating synthetic samples (e.g., 5, 7, 9). Specifically used for SMOTE sampling method.|
+|*Default:*|5|
+|*Type:*|int|
   
 - **mtss\_num\_super\_scaffolds**  
   

@@ -340,8 +340,16 @@ class ModelPipeline:
             time_generated=time.time(),
             save_results=self.params.save_results,
             hyperparam_uuid=self.params.hyperparam_uuid,
-            ampl_version=mu.get_ampl_version()
+            ampl_version=mu.get_ampl_version(),
+            search_type=self.params.search_type
         )
+        # add in sampling method parameters for documentation/reproducibility
+        if self.params.sampling_method is not None:
+            model_params['sampling_method'] = self.params.sampling_method
+        if self.params.sampling_ratio is not None:
+            model_params['sampling_ratio'] = self.params.sampling_ratio
+        if self.sampling_k_neighbors is not None:
+            model_params['sampling_k_neighbors'] = self.params.sampling_k_neighors
 
         splitting_metadata = self.data.get_split_metadata()
         model_metadata = dict(
