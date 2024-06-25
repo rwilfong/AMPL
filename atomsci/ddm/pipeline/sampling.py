@@ -21,12 +21,14 @@ def apply_sampling_method(train, params):
     Returns:
         - train_resampled: a DeepChem NumpyDataset with train.X, train.y, train.w, and train.ids
     """
+    print(f"split type: {params.split_strategy}, sampling method: {params.sampling_method}")
     sampling_ratio = params.sampling_ratio
     if params.sampling_method=='SMOTE':
         # moving k-neighbors into SMOTE since it is SMOTE specific
         sampling_k_neighbors = params.sampling_k_neighbors
         smote=SMOTE(sampling_strategy=sampling_ratio, k_neighbors=sampling_k_neighbors)
-        X_resampled, y_resampled = smote.fit_resample(train.X, train.y)
+        X_resampled, y_resampled = smote.fit_resample(train.X, train.y.ravel())
+        y_resampled=y_resampled.reshape(-1, 1)
         
         # calculate synthetic weights.  
         num_original = len(train.X)
@@ -44,7 +46,9 @@ def apply_sampling_method(train, params):
         
     elif params.sampling_method == 'undersampling':
         undersampler = RandomUnderSampler(sampling_strategy=sampling_ratio)
-        X_resampled, y_resampled = undersampler.fit_resample(train.X, train.y)
+        X_resampled, y_resampled = undersampler.fit_resample(train.X, train.y.ravel())
+        y_resampled=y_resampled.reshape(-1, 1)
+        
         #adjust weights and ids 
         resampled_indices = undersampler.sample_indices_
         resampled_weights = train.w[resampled_indices]

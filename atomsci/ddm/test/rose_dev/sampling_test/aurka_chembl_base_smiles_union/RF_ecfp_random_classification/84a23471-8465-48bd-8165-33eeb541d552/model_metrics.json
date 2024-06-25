@@ -1,0 +1,159 @@
+[
+    {
+        "input_dataset": {
+            "bucket": "public",
+            "dataset_hash": null,
+            "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/rose_dev/sampling_test/../../test_datasets/aurka_chembl_base_smiles_union.csv",
+            "dataset_metadata": {},
+            "dataset_oid": null,
+            "datastore": false,
+            "external_export_parameters": {
+                "result_dir": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/rose_dev/sampling_test"
+            },
+            "feature_transform_type": "normalization",
+            "id_col": "compound_id",
+            "production": false,
+            "response_cols": [
+                "active"
+            ],
+            "response_transform_type": "normalization",
+            "smiles_col": "base_rdkit_smiles",
+            "weight_transform_type": null
+        },
+        "label": "best",
+        "metrics_type": "training",
+        "model_uuid": "84a23471-8465-48bd-8165-33eeb541d552",
+        "prediction_results": {
+            "accuracy_score": 1.0,
+            "bal_accuracy": 1.0,
+            "confusion_matrix": [
+                [
+                    [
+                        292,
+                        0
+                    ],
+                    [
+                        0,
+                        1757
+                    ]
+                ]
+            ],
+            "cross_entropy": 0.05920055271519668,
+            "kappa": 1.0,
+            "matthews_cc": 1.0,
+            "npv": 1.0,
+            "num_compounds": 2049,
+            "prc_auc_score": 1.0,
+            "precision": 1.0,
+            "recall_score": 1.0,
+            "roc_auc_score": 1.0
+        },
+        "subset": "train",
+        "time_run": 1719326221.2754078
+    },
+    {
+        "input_dataset": {
+            "bucket": "public",
+            "dataset_hash": null,
+            "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/rose_dev/sampling_test/../../test_datasets/aurka_chembl_base_smiles_union.csv",
+            "dataset_metadata": {},
+            "dataset_oid": null,
+            "datastore": false,
+            "external_export_parameters": {
+                "result_dir": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/rose_dev/sampling_test"
+            },
+            "feature_transform_type": "normalization",
+            "id_col": "compound_id",
+            "production": false,
+            "response_cols": [
+                "active"
+            ],
+            "response_transform_type": "normalization",
+            "smiles_col": "base_rdkit_smiles",
+            "weight_transform_type": null
+        },
+        "label": "best",
+        "metrics_type": "training",
+        "model_uuid": "84a23471-8465-48bd-8165-33eeb541d552",
+        "prediction_results": {
+            "accuracy_score": 0.9134396355353075,
+            "bal_accuracy": 0.7423951828724353,
+            "confusion_matrix": [
+                [
+                    [
+                        30,
+                        29
+                    ],
+                    [
+                        9,
+                        371
+                    ]
+                ]
+            ],
+            "cross_entropy": 0.22371564111003553,
+            "kappa": 0.5657990629880271,
+            "matthews_cc": 0.5811784273707084,
+            "model_choice_score": 0.9235950044603033,
+            "npv": 0.7692307692307693,
+            "num_compounds": 439,
+            "prc_auc_score": 0.9848899331181598,
+            "precision": 0.9275,
+            "recall_score": 0.9763157894736842,
+            "roc_auc_score": 0.9235950044603033
+        },
+        "subset": "valid",
+        "time_run": 1719326221.2754078
+    },
+    {
+        "input_dataset": {
+            "bucket": "public",
+            "dataset_hash": null,
+            "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/rose_dev/sampling_test/../../test_datasets/aurka_chembl_base_smiles_union.csv",
+            "dataset_metadata": {},
+            "dataset_oid": null,
+            "datastore": false,
+            "external_export_parameters": {
+                "result_dir": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/rose_dev/sampling_test"
+            },
+            "feature_transform_type": "normalization",
+            "id_col": "compound_id",
+            "production": false,
+            "response_cols": [
+                "active"
+            ],
+            "response_transform_type": "normalization",
+            "smiles_col": "base_rdkit_smiles",
+            "weight_transform_type": null
+        },
+        "label": "best",
+        "metrics_type": "training",
+        "model_uuid": "84a23471-8465-48bd-8165-33eeb541d552",
+        "prediction_results": {
+            "accuracy_score": 0.8977272727272727,
+            "bal_accuracy": 0.677547363031234,
+            "confusion_matrix": [
+                [
+                    [
+                        23,
+                        39
+                    ],
+                    [
+                        6,
+                        372
+                    ]
+                ]
+            ],
+            "cross_entropy": 0.2445705520985122,
+            "kappa": 0.4567006914718472,
+            "matthews_cc": 0.49792743619265134,
+            "npv": 0.7931034482758621,
+            "num_compounds": 440,
+            "prc_auc_score": 0.9828640834540485,
+            "precision": 0.9051094890510949,
+            "recall_score": 0.9841269841269841,
+            "roc_auc_score": 0.908452807646356
+        },
+        "subset": "test",
+        "time_run": 1719326221.2754078
+    }
+]

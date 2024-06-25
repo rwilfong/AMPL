@@ -352,8 +352,8 @@ class ModelPipeline:
             model_params['sampling_method'] = self.params.sampling_method
         if self.params.sampling_ratio is not None:
             model_params['sampling_ratio'] = self.params.sampling_ratio
-        if self.sampling_k_neighbors is not None:
-            model_params['sampling_k_neighbors'] = self.params.sampling_k_neighors
+        if self.params.sampling_k_neighbors is not None:
+            model_params['sampling_k_neighbors'] = self.params.sampling_k_neighbors
 
         splitting_metadata = self.data.get_split_metadata()
         model_metadata = dict(

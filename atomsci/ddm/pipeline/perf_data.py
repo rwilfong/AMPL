@@ -1241,6 +1241,10 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         """
         class_probs = self._reshape_preds(predicted_vals)
         for i, id in enumerate(ids):
+            ########## added by rose ##########
+            #if id not in self.pred_vals:
+            #    self.pred_vals[id] = np.zeros((0, self.num_tasks, class_probs.shape[-1]))
+            ###################################
             self.pred_vals[id] = np.concatenate([self.pred_vals[id], class_probs[i,:,:].reshape((1,self.num_tasks,-1))], axis=0)
         self.folds += 1
         real_vals = self.get_real_values(ids)
@@ -1288,14 +1292,14 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         """
         ids = sorted(self.pred_vals.keys())
         if self.subset in ['train', 'test', 'train_valid']:
-            #class_probs = np.concatenate([dc.trans.undo_transforms(self.pred_vals[id], self.transformers).mean(axis=0, keepdims=True)
-            #                       for id in ids], axis=0)
-            #prob_stds = np.concatenate([dc.trans.undo_transforms(self.pred_vals[id], self.transformers).std(axis=0, keepdims=True)
-            #                       for id in ids], axis=0)
-            class_probs = dc.trans.undo_transforms(np.concatenate([self.pred_vals[id].mean(axis=0, keepdims=True)
-                                   for id in ids], axis=0), self.transformers)
-            prob_stds = dc.trans.undo_transforms(np.concatenate([self.pred_vals[id].std(axis=0, keepdims=True)
-                                   for id in ids], axis=0), self.transformers)
+            class_probs = np.concatenate([dc.trans.undo_transforms(self.pred_vals[id], self.transformers).mean(axis=0, keepdims=True)
+                                   for id in ids], axis=0)
+            prob_stds = np.concatenate([dc.trans.undo_transforms(self.pred_vals[id], self.transformers).std(axis=0, keepdims=True)
+                                   for id in ids], axis=0)
+            #class_probs = dc.trans.undo_transforms(np.concatenate([self.pred_vals[id].mean(axis=0, keepdims=True)
+            #                       for id in ids], axis=0), self.transformers)
+            #prob_stds = dc.trans.undo_transforms(np.concatenate([self.pred_vals[id].std(axis=0, keepdims=True)
+            #                       for id in ids], axis=0), self.transformers)
         else:
             class_probs = np.concatenate([dc.trans.undo_transforms(self.pred_vals[id], self.transformers) for id in ids], axis=0)
             prob_stds = None
@@ -1320,8 +1324,13 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         if ids is None:
             ids = sorted(self.pred_vals.keys())
         if self.num_classes > 2:
+            #return np.concatenate([self.real_vals.get(id, np.zeros((1, self.num_tasks, self.num_classes))).reshape((1, -1, self.num_classes)) for id in ids],
+            #axis=0)
             return np.concatenate([self.real_vals[id].reshape((1,-1,self.num_classes)) for id in ids], axis=0)
         else:
+            #return np.concatenate(
+            #[self.real_vals.get(id, np.zeros((1, self.num_tasks))).reshape((1, -1)) for id in ids],
+            #axis=0)
             return np.concatenate([self.real_vals[id].reshape((1,-1)) for id in ids], axis=0)
 
     # ****************************************************************************************
@@ -1340,7 +1349,13 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         """
         if ids is None:
             ids = sorted(self.pred_vals.keys())
-        return np.concatenate([self.weights[id].reshape((1,-1)) for id in ids], axis=0)
+            
+        return np.concatenate([self.weights[id].reshape((1,-1)) for id in ids], axis=0) 
+        
+        #default_weight = np.ones((1, self.num_tasks))
+        #return np.concatenate(
+        #[self.weights.get(id, default_weight).reshape((1, -1)) for id in ids],
+        #axis=0)
 
 
     # ****************************************************************************************
