@@ -110,6 +110,7 @@ def saved_model_identity(pparams):
     smiles_col = metrics['input_dataset']['smiles_col']
     test_length = metrics['prediction_results']['num_compounds']
 
+    # predict from model
     model_tar = train_pipe.params.model_tarball_path
     pred_df = pfm.predict_from_model_file(model_tar, test_df, id_col=id_col,
                 smiles_col=smiles_col, response_col=response_col)
@@ -120,10 +121,33 @@ def saved_model_identity(pparams):
     y = pred_df[response_col+'_pred'].values
     X2 = pred_df2[response_col+'_actual'].values
     y2 = pred_df2[response_col+'_pred'].values
-    pred_df.to_csv('/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/rose_dev/sampling_test/pred_df.csv')
-    print('returned pred_df to a csv')
-    pred_df2.to_csv('/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/rose_dev/sampling_test/pred_df2.csv')
-    print('returned pred_df2 to a csv')
+
+    accuracy = skmetrics.accuracy_score(X, y)
+    precision = skmetrics.precision_score(X, y, average='weighted')
+    recall = skmetrics.recall_score(X, y, average='weighted')
+    prc_auc = skmetrics.average_precision_score(X, y)
+
+    saved_accuracy = metrics['prediction_results']['accuracy_score']
+    saved_precision = metrics['prediction_results']['precision']
+    saved_recall = metrics['prediction_results']['recall_score']
+    saved_prc_auc = metrics['prediction_results']['prc_auc_score']
+
+    # reveal results
+    print(metrics['subset'])
+    print(pred_df.columns)
+    print("Accuracy difference:", abs(accuracy - saved_accuracy))
+    print("Precision difference:", abs(precision - saved_precision))
+    print("Recall difference:", abs(recall-saved_recall))
+    print("PRC AUC difference:", abs(prc_auc-saved_prc_auc))
+
+    assert abs(accuracy-saved_accuracy) < 1 \
+        and abs(precision - saved_precision) < 1 \
+        and abs(recall-saved_recall) < 1 \
+        and abs(prc_auc - saved_prc_auc) < 1 \
+        and (test_length == len(test_df))
+
+    
+    
 
 ##########################################################
 
@@ -137,8 +161,8 @@ def k_fold_cv_RF_test():
 ##########################
 
 if __name__=='__main__':
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    print(script_path)
     print('train_valid_test_rf_random_test')
     train_valid_test_RF_random_test()
-    #print('train_valid_test_NN_scaffold_test')
+    print('train_valid_test_NN_scaffold_test')
+    train_valid_test_NN_scaffold_test()
+    print("Passed!")

@@ -10,5 +10,5 @@
 "split_valid_frac": "0.15", 
 "transformers": "True", 
 "id_col": "compound_id", 
-"repsonse_cols":"active", 
+"response_cols":"active", 
 "max_epochs":"100"}
