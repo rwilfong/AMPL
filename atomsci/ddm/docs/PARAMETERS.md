@@ -276,7 +276,15 @@ The AMPL pipeline contains many parameters and options to fit models and make pr
 |*Description:*|True/False flag for setting verbosity|
 |*Default:*|FALSE|
 |*Type:*|Bool|
+
+- **seed**  
   
+|||
+|-|-|
+|*Description:*|Seed used for initializing a random number generator to ensure results are reproducible. Default is None and a random seed will be generated.|
+|*Default:*|None|
+|*Type:*|int|
+
 - **production**  
   
 |||
