@@ -7,6 +7,7 @@
 "split_strategy": "k_fold_cv", 
 "splitter": "random", 
 "sampling_method": "undersampling",
+"smiles_col": "base_rdkit_smiles",
 "split_test_frac": "0.15", 
 "split_valid_frac": "0.15", 
 "transformers": "True", 
