@@ -1194,6 +1194,7 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         self.num_cmpds = dataset.y.shape[0]
         self.num_tasks = dataset.y.shape[1]
         self.num_classes = len(set(model_dataset.dataset.y.flatten()))
+        print("IDS in dataset.ids:", dataset.ids)
         self.pred_vals = dict([(id, np.empty((0, self.num_tasks, self.num_classes), dtype=np.float32)) for id in dataset.ids])
 
         real_vals, self.weights = model_dataset.get_subset_responses_and_weights(self.subset, [])
@@ -1239,12 +1240,20 @@ class KFoldClassificationPerfData(ClassificationPerfData):
             Increments folds by 1
 
         """
+        ### ADDED BY ROSE ### 
+        if isinstance(ids, list):
+            ids=np.array(ids)
+        print("predicted vals are:", predicted_vals)
+        print("predicted val len:", len(predicted_vals))
+
+        print("self.pred_vals are:", self.pred_vals)
+        
         class_probs = self._reshape_preds(predicted_vals)
+    
         for i, id in enumerate(ids):
-            ########## added by rose ##########
+            #print("pred_vals are:", self.pred_vals)
             #if id not in self.pred_vals:
             #    self.pred_vals[id] = np.zeros((0, self.num_tasks, class_probs.shape[-1]))
-            ###################################
             self.pred_vals[id] = np.concatenate([self.pred_vals[id], class_probs[i,:,:].reshape((1,self.num_tasks,-1))], axis=0)
         self.folds += 1
         real_vals = self.get_real_values(ids)
@@ -1324,13 +1333,8 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         if ids is None:
             ids = sorted(self.pred_vals.keys())
         if self.num_classes > 2:
-            #return np.concatenate([self.real_vals.get(id, np.zeros((1, self.num_tasks, self.num_classes))).reshape((1, -1, self.num_classes)) for id in ids],
-            #axis=0)
             return np.concatenate([self.real_vals[id].reshape((1,-1,self.num_classes)) for id in ids], axis=0)
         else:
-            #return np.concatenate(
-            #[self.real_vals.get(id, np.zeros((1, self.num_tasks))).reshape((1, -1)) for id in ids],
-            #axis=0)
             return np.concatenate([self.real_vals[id].reshape((1,-1)) for id in ids], axis=0)
 
     # ****************************************************************************************
@@ -1489,7 +1493,8 @@ class SimpleRegressionPerfData(RegressionPerfData):
             Reshapes the predicted values and the standard deviations (if they are given)
 
         """
-
+        print("id len is:", len(ids)) 
+        print("ids are:", ids)
         self.pred_vals = self._reshape_preds(predicted_vals)
         if pred_stds is not None:
             self.pred_stds = self._reshape_preds(pred_stds)

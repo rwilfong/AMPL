@@ -15,6 +15,7 @@ from pathlib import Path
 import getpass
 import traceback
 import sys
+from atomsci.ddm.pipeline import random_seed_dev as rs 
 
 feather_supported = True
 try:
@@ -41,9 +42,9 @@ def create_model_dataset(params, featurization, ds_client=None):
         either (DatastoreDataset) or (FileDataset): instantiated ModelDataset subclass specified by params
     """
     if params.datastore:
-        return DatastoreDataset(params, featurization, ds_client)
+        return DatastoreDataset(params, featurization, ds_client) #random_state,
     else:
-        return FileDataset(params, featurization)
+        return FileDataset(params, featurization) #random_state,
 
 # ****************************************************************************************
 def create_minimal_dataset(params, featurization, contains_responses=False):
@@ -276,6 +277,7 @@ class ModelDataset(object):
     """
 
     def __init__(self, params, featurization):
+        #, random_state
         """Initializes ModelDataset object.
 
         Arguments:
@@ -293,6 +295,10 @@ class ModelDataset(object):
         # override this.
         self.contains_responses = True
 
+        # testing 
+        #self.random_state = random_state
+        #print(random_state)
+        
         # Create object to delegate featurization to
         if featurization is None:
             self.featurization = feat.create_featurization(self.params)
@@ -1185,6 +1191,7 @@ class FileDataset(ModelDataset):
     """
 
     def __init__(self, params, featurization):
+        # , random_state
         """Initializes FileDataset object.
 
         Args:
@@ -1192,7 +1199,7 @@ class FileDataset(ModelDataset):
 
             featurization: Featurization object; will be created if necessary based on params
         """
-        super().__init__(params, featurization)
+        super().__init__(params, featurization) # , random_state
         if params.dataset_name:
             self.dataset_name = params.dataset_name
         else:

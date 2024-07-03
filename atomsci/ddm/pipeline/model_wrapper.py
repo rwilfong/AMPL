@@ -52,6 +52,11 @@ from atomsci.ddm.pipeline import transformations as trans
 from atomsci.ddm.pipeline import perf_data as perf
 import atomsci.ddm.pipeline.parameter_parser as pp
 
+from atomsci.ddm.pipeline import sampling as sample
+
+######## ADD SEED ##########
+import atomsci.ddm.pipeline.random_seed as rs
+
 from tensorflow.python.keras.utils.layer_utils import count_params
 
 logging.basicConfig(format='%(asctime)-15s %(message)s')
@@ -172,6 +177,7 @@ def all_bases(model):
 
 # ****************************************************************************************
 def create_model_wrapper(params, featurizer, ds_client=None):
+    # random_state
     """Factory function for creating Model objects of the correct subclass for params.model_type.
 
     Args:
@@ -180,6 +186,8 @@ def create_model_wrapper(params, featurizer, ds_client=None):
         featurizer (Featurization): Object managing the featurization of compounds
 
         ds_client (DatastoreClient): Interface to the file datastore
+        
+        random_gen (RandomStateGenerator): Instance managing random state and seed
 
     Returns:
         model (pipeline.Model): Wrapper for DeepChem, sklearn or other model.
@@ -236,7 +244,7 @@ class ModelWrapper(object):
         Set in __init__
             params (argparse.Namespace): The argparse.Namespace parameter object that contains all parameter information
 
-            featurziation (Featurization object): The featurization object created outside of model_wrapper
+            featurization (Featurization object): The featurization object created outside of model_wrapper
 
             log (log): The logger
 
@@ -289,6 +297,8 @@ class ModelWrapper(object):
         self.transformers = []
         self.transformers_x = []
         self.transformers_w = []
+        
+        
 
         # ****************************************************************************************
 
@@ -363,6 +373,7 @@ class ModelWrapper(object):
 
         Args:
             model_dataset: The ModelDataset object that handles the current dataset
+            random_state: , random_state
 
         Side effects:
             Overwrites the attributes:
@@ -434,6 +445,7 @@ class ModelWrapper(object):
         # ****************************************************************************************
 
     def transform_dataset(self, dataset):
+        # , random_state
         """Transform the responses and/or features in the given DeepChem dataset using the current transformers.
 
         Args:
@@ -447,14 +459,17 @@ class ModelWrapper(object):
         if len(self.transformers) > 0:
             self.log.info("Transforming response data")
             for transformer in self.transformers:
+                print("the transformers are:", transformer)
                 transformed_dataset = transformer.transform(transformed_dataset)
         if len(self.transformers_x) > 0:
             self.log.info("Transforming feature data")
             for transformer in self.transformers_x:
+                print("the transformers are for transformers_x:", transformer)
                 transformed_dataset = transformer.transform(transformed_dataset)
         if len(self.transformers_w) > 0:
             self.log.info("Transforming weights")
             for transformer in self.transformers_w:
+                print("the transformers are for transformers_w:", transformer)
                 transformed_dataset = transformer.transform(transformed_dataset)
 
         return transformed_dataset
@@ -884,8 +899,10 @@ class NNModelWrapper(ModelWrapper):
         """
         # TODO: Fix docstrings above
         num_folds = len(pipeline.data.train_valid_dsets)
+        print(f"Training k-fold cv. There are {num_folds} folds")
+        
         self.data = pipeline.data
-
+        print("self.data:", self.data) 
         # Create PerfData structures for computing cross-validation metrics
         em = perf.EpochManagerKFold(self,
                                 subsets={'train':'train_valid', 'valid':'valid', 'test':'test'},
@@ -905,16 +922,41 @@ class NNModelWrapper(ModelWrapper):
 
         for ei in LCTimerKFoldIterator(self.params, pipeline, self.log):
             # Create PerfData structures that are only used within loop to compute metrics during initial training
+            #if 
             train_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'train')
+            print("train_perf_data pipeline.data:", pipeline.data)
+            print("train_perf_data params.prediction_type:", self.params.prediction_type)
+            print("train_perf_data:", train_perf_data)
             test_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'test')
             for k in range(num_folds):
                 self.model = models[k]
                 train_dset, valid_dset = pipeline.data.train_valid_dsets[k]
 
+                # applying sampling within wrapper
+                # add in an option to apply a sampling method if it exists, else, pass. 
+                if self.params.sampling_method is not None:
+                    print("applying sampling method")
+                    train_dset = sample.apply_sampling_method(train_dset, self.params)
+                    print("Finished applying sampling!")
+
+                # Need to adapt the train_perf_data to have an updated modelDataset object. 
+                # What's happening is that the pipeline.data is the older version (un-updated for SMOTE).
+                # Need to parse 
+
+                #if self.params.sampling_method is not None: 
+                #    train_perf_data = perf.create_perf_data(self.params.prediction_type, train_dset, self.transformers , 'train')
+                
                 # We turn off automatic checkpointing - we only want to save a checkpoints for the final model.
                 self.model.fit(train_dset, nb_epoch=1, checkpoint_interval=0, restore=False)
                 train_pred = self.model.predict(train_dset, [])
+                #print("train_pred:", train_pred)
                 test_pred = self.model.predict(test_dset, [])
+
+                #print("Train perf:", train_pred)
+                #print("train dset ids:", train_dset.ids)
+
+                #print("test perf:", test_pred)
+                #print("test dset ids:", test_dset.ids)
 
                 train_perf = train_perf_data.accumulate_preds(train_pred, train_dset.ids)
                 test_perf = test_perf_data.accumulate_preds(test_pred, test_dset.ids)
