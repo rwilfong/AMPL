@@ -13,7 +13,7 @@ from atomsci.ddm.pipeline import parameter_parser as parse
 from atomsci.ddm.test.integrative import integrative_utilities
 import atomsci.ddm.pipeline.predict_from_model as pfm
 
-########### MODEL DEETS ################
+########### TEST FUNCTIONS ################
 
 def get_test_set(dataset_key, split_csv, id_col):
     """
@@ -59,9 +59,11 @@ def find_best_test_metric(model_metrics):
 
 ################# ACTUAL TESTS ###########################
 
-def train_valid_test_RF_random_test(): 
+################# SMOTE SPECIFIC #########################
+
+def train_valid_test_RF_SMOTE_test(): 
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file = os.path.join(script_path, 'train_valid_test_rf_random.json')
+    json_file = os.path.join(script_path, 'train_valid_test_RF_SMOTE.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key= os.path.join(script_path,
@@ -71,9 +73,35 @@ def train_valid_test_RF_random_test():
 
     saved_model_identity(pparams)
 
-def train_valid_test_NN_scaffold_test():
+def train_valid_test_NN_SMOTE_test():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file = os.path.join(script_path, 'train_valid_test_NN_scaffold.json')
+    json_file = os.path.join(script_path, 'train_valid_test_NN_SMOTE.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+
+################# UNDERSAMPLING SPECIFIC #########################
+def train_valid_test_RF_undersampling_test(): 
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'train_valid_test_RF_undersampling.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+def train_valid_test_NN_undersampling_test():
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'train_valid_test_NN_undersampling.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key= os.path.join(script_path,
@@ -161,8 +189,12 @@ def k_fold_cv_RF_test():
 ##########################
 
 if __name__=='__main__':
-    print('train_valid_test_rf_random_test')
-    train_valid_test_RF_random_test()
-    print('train_valid_test_NN_scaffold_test')
-    train_valid_test_NN_scaffold_test()
+    print('train_valid_test_RF_SMOTE_test')
+    train_valid_test_RF_SMOTE_test()
+    print('train_valid_test_NN_SMOTE_test')
+    train_valid_test_NN_SMOTE_test()
+    print("train_valid_test_RF_undersampling_test")
+    train_valid_test_RF_undersampling_test()
+    print("train_valid_test_NN_undersampling_test")
+    train_valid_test_NN_undersampling_test()
     print("Passed!")
