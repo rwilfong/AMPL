@@ -176,8 +176,7 @@ def all_bases(model):
     return result
 
 # ****************************************************************************************
-def create_model_wrapper(params, featurizer, ds_client=None):
-    # random_state
+def create_model_wrapper(params, featurizer, ds_client=None, random_state=None, seed=None):
     """Factory function for creating Model objects of the correct subclass for params.model_type.
 
     Args:
@@ -195,13 +194,15 @@ def create_model_wrapper(params, featurizer, ds_client=None):
     Raises:
         ValueError: Only params.model_type = 'NN', 'RF' or 'xgboost' is supported.
     """
+    print("(create_model_wrapper.py) the seed used to generate the model_wrapper is:", seed)
+ 
     if params.model_type == 'NN':
         if params.featurizer == 'graphconv':
-            return GraphConvDCModelWrapper(params, featurizer, ds_client)
+            return GraphConvDCModelWrapper(params, featurizer, ds_client, random_state, seed)
         else:
-            return MultitaskDCModelWrapper(params, featurizer, ds_client)
+            return MultitaskDCModelWrapper(params, featurizer, ds_client, random_state, seed)
     elif params.model_type == 'RF':
-        return DCRFModelWrapper(params, featurizer, ds_client)
+        return DCRFModelWrapper(params, featurizer, ds_client, random_state, seed)
     elif params.model_type == 'xgboost':
         if not xgboost_supported:
             raise Exception("Unable to import xgboost. \
@@ -217,9 +218,9 @@ def create_model_wrapper(params, featurizer, ds_client=None):
                              installation: \
                              from pip: pip install xgboost==0.90")
         else:
-            return DCxgboostModelWrapper(params, featurizer, ds_client)
+            return DCxgboostModelWrapper(params, featurizer, ds_client, random_state, seed)
     elif params.model_type == 'hybrid':
-        return HybridModelWrapper(params, featurizer, ds_client)
+        return HybridModelWrapper(params, featurizer, ds_client, random_state, seed)
     elif params.model_type in pp.model_wl:
         requested_model = pp.model_wl[params.model_type]
         bases = all_bases(requested_model)
@@ -228,9 +229,9 @@ def create_model_wrapper(params, featurizer, ds_client=None):
         if any(['TorchModel' in str(b) for b in bases]):
             if not afp_supported:
                 raise Exception("dgl and dgllife packages must be installed to use attentive_fp model.")
-            return PytorchDeepChemModelWrapper(params, featurizer, ds_client)
+            return PytorchDeepChemModelWrapper(params, featurizer, ds_client, random_state, seed)
         elif any(['KerasModel' in str(b) for b in bases]):
-            return KerasDeepChemModelWrapper(params, featurizer, ds_client)
+            return KerasDeepChemModelWrapper(params, featurizer, ds_client, random_state, seed)
     else:
         raise ValueError("Unknown model_type %s" % params.model_type)
 
@@ -260,7 +261,7 @@ class ModelWrapper(object):
             best_model_dir (str): The subdirectory under output_dir that contains the best model. Created in setup_model_dirs
 
     """
-    def __init__(self, params, featurizer, ds_client):
+    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
         """Initializes ModelWrapper object.
 
         Args:
@@ -297,6 +298,9 @@ class ModelWrapper(object):
         self.transformers = []
         self.transformers_x = []
         self.transformers_w = []
+        self.random_state = random_state
+        self.seed = seed 
+        print("the seed used to initialize the model_wrapper class is:", self.seed)
         
         
 
@@ -337,7 +341,7 @@ class ModelWrapper(object):
         raise NotImplementedError
 
         # ****************************************************************************************
-    def _create_output_transformers(self, model_dataset):
+    def _create_output_transformers(self, model_dataset, random_state=None, seed=None):
         """Initialize transformers for responses and persist them for later.
 
         Args:
@@ -348,12 +352,13 @@ class ModelWrapper(object):
                 transformers: A list of deepchem transformation objects on response_col, only if conditions are met
         """
         # TODO: Just a warning, we may have response transformers for classification datasets in the future
+        print("(model_wrapper) the seed used in _create_output_transformers is:", seed)
         if self.params.prediction_type=='regression' and self.params.transformers==True:
-            self.transformers = [trans.NormalizationTransformerMissingData(transform_y=True, dataset=model_dataset.dataset)]
+            self.transformers = [trans.NormalizationTransformerMissingData(transform_y=True, dataset=model_dataset.dataset, random_state=random_state, seed=seed)]
 
         # ****************************************************************************************
 
-    def _create_feature_transformers(self, model_dataset):
+    def _create_feature_transformers(self, model_dataset, random_state=None, seed=None):
         """Initialize transformers for features, and persist them for later.
 
         Args:
@@ -363,12 +368,13 @@ class ModelWrapper(object):
             Overwrites the attributes:
                 transformers_x: A list of deepchem transformation objects on featurizers, only if conditions are met.
         """
+        print("model_wrapper.py) the seed used in _create_feature_transformers is:", seed)
         # Set up transformers for features, if needed
-        self.transformers_x = trans.create_feature_transformers(self.params, model_dataset)
+        self.transformers_x = trans.create_feature_transformers(self.params, model_dataset, random_state=random_state, seed=seed)
 
         # ****************************************************************************************
 
-    def create_transformers(self, model_dataset):
+    def create_transformers(self, model_dataset, random_state=None, seed=None):
         """Initialize transformers for responses, features and weights, and persist them for later.
 
         Args:
@@ -386,9 +392,13 @@ class ModelWrapper(object):
                 params.transformer_key: A string pointing to the dataset key containing the transformer in the datastore, or the path to the transformer
 
         """
-        self._create_output_transformers(model_dataset)
+        self.random_state=random_state
+        self.seed=seed
+        print("the seed being used in create_transformers is:", self.seed)
+        
+        self._create_output_transformers(model_dataset, random_state=self.random_state, seed=self.seed)
 
-        self._create_feature_transformers(model_dataset)
+        self._create_feature_transformers(model_dataset, random_state=self.random_state, seed=self.seed)
 
         # Set up transformers for weights, if needed
         self.transformers_w = trans.create_weight_transformers(self.params, model_dataset)
@@ -838,7 +848,7 @@ class NNModelWrapper(ModelWrapper):
         os.mkdir(dest_dir)
 
     # ****************************************************************************************
-    def train(self, pipeline):
+    def train(self, pipeline, random_state=None, seed=None):
         """Trains a neural net model for multiple epochs, choose the epoch with the best validation
         set performance, refits the model for that number of epochs, and saves the tuned model.
 
@@ -864,14 +874,15 @@ class NNModelWrapper(ModelWrapper):
                     contains a list of dictionaries of predicted values and metrics on the validation dataset
         """
         # TODO: Fix docstrings above
+        print("(model_wrapper.py) the seed used in class NNModelWrapper train is:", seed)
         num_folds = len(pipeline.data.train_valid_dsets)
         if num_folds > 1:
-            self.train_kfold_cv(pipeline)
+            self.train_kfold_cv(pipeline, random_state=random_state, seed=seed)
         else:
-            self.train_with_early_stopping(pipeline)
+            self.train_with_early_stopping(pipeline, random_state=random_state, seed=seed)
 
     # ****************************************************************************************
-    def train_kfold_cv(self, pipeline):
+    def train_kfold_cv(self, pipeline, random_state=None, seed=None):
         """Trains a neural net model with K-fold cross-validation for a specified number of epochs.
         Finds the epoch with the best validation set performance averaged over folds, then refits
         a model for the same number of epochs to the combined training and validation data.
@@ -897,12 +908,14 @@ class NNModelWrapper(ModelWrapper):
                 valid_epoch_perfs (np.array): Contains a standard validation set performance metric (r2_score or roc_auc), averaged over folds,
                     at the end of each epoch.
         """
+        # return seed used 
+        print("(model_wrapper.py) the seed used in NNModelWrapper train_kfold_cv is:", seed) 
+        
         # TODO: Fix docstrings above
         num_folds = len(pipeline.data.train_valid_dsets)
         print(f"Training k-fold cv. There are {num_folds} folds")
         
         self.data = pipeline.data
-        print("self.data:", self.data) 
         # Create PerfData structures for computing cross-validation metrics
         em = perf.EpochManagerKFold(self,
                                 subsets={'train':'train_valid', 'valid':'valid', 'test':'test'},
@@ -999,7 +1012,7 @@ class NNModelWrapper(ModelWrapper):
                        retrain_time/self.best_epoch))
 
     # ****************************************************************************************
-    def train_with_early_stopping(self, pipeline):
+    def train_with_early_stopping(self, pipeline, random_state=None, seed=None):
         """Trains a neural net model for up to self.params.max_epochs epochs, while tracking the validation
         set metric given by params.model_choice_score_type. Saves a model checkpoint each time the metric
         is improved over its previous saved value by more than a threshold percentage. If the metric fails to
@@ -1027,6 +1040,8 @@ class NNModelWrapper(ModelWrapper):
 
                 valid_epoch_perfs (np.array): A standard validation set performance metric (r2_score or roc_auc), at the end of each epoch.
         """
+        print("(model_wrapper.py) The seed used in NNModelWrapper train_with_early_stopping is:", seed) 
+        
         self.data = pipeline.data
 
         em = perf.EpochManager(self,
@@ -2333,7 +2348,7 @@ class PytorchDeepChemModelWrapper(NNModelWrapper):
             valid_perfs (dict): A dictionary of predicted values and metrics on the validation dataset
 
     """
-    def __init__(self, params, featurizer, ds_client):
+    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
         """Initializes AttentiveFPModelWrapper object. Creates the underlying DeepChem AttentiveFPModel instance.
 
         Args:
@@ -2343,10 +2358,14 @@ class PytorchDeepChemModelWrapper(NNModelWrapper):
             ds_client: datastore client.
         """
         # use NNModelWrapper init. 
-        super().__init__(params, featurizer, ds_client)
+        super().__init__(params, featurizer, ds_client, random_state, seed)
         self.num_epochs_trained = 0
 
         self.model = self.recreate_model()
+        
+        self.seed=seed
+        self.random_state=random_state
+        print("(model_wrapper.py) the seed used to initialize the PytorchDeepChemModelWrapper is (self.seed):", self.seed)
 
     # ****************************************************************************************
     def recreate_model(self, **kwargs):
@@ -2359,6 +2378,7 @@ class PytorchDeepChemModelWrapper(NNModelWrapper):
         """
         # extract parameters specific to this model
         extracted_features = pp.extract_model_params(self.params)
+        print("(model_wrapper.py) the extracted_features are:", extracted_features)
 
         # model_dir is set and handled by AMPL.
         extracted_features.update({'model_dir': self.model_dir})
@@ -2367,13 +2387,15 @@ class PytorchDeepChemModelWrapper(NNModelWrapper):
         extracted_features.update(kwargs)
 
         chosen_model = pp.model_wl[self.params.model_type]
+        print("(model_wrapper.py) the chosen model is:", chosen_model)
+        
         self.log.info(f'Args passed to {chosen_model}:{str(extracted_features)}')
 
         # build the model
         model = chosen_model(
                 **extracted_features
             ) 
-
+        print("(model_wrapper.py) the model is:", model)
         return model
 
     # ****************************************************************************************

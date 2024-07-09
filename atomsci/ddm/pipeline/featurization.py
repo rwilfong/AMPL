@@ -85,11 +85,15 @@ def make_weights(vals, is_class=False):
 
 
 # ****************************************************************************************
-def create_featurization(params):
+def create_featurization(params, random_state=None, seed=None):
     """Factory method to create the appropriate type of Featurization object for params.featurizer
 
     Args:
         params (argparse.Namespace: Object containing the parameter list
+
+        random_state
+        
+        seed 
 
     Returns:
         Featurization object of the correct subclass as specified by params.featurizer
@@ -99,15 +103,17 @@ def create_featurization(params):
 
     """
     #TODO: Change molvae to generic autoencoder
+    print("the seed used in creating the featurization is:", seed)
+    # pass into the classes 
     if params.featurizer in ('ecfp', 'graphconv', 'molvae') \
             or params.featurizer in pp.featurizer_wl:
-        return DynamicFeaturization(params)
+        return DynamicFeaturization(params, random_state=random_state, seed=seed)
     elif params.featurizer == 'embedding':
-        return EmbeddingFeaturization(params)
+        return EmbeddingFeaturization(params, random_state=random_state, seed=seed)
     elif params.featurizer in ('descriptors'):
-        return DescriptorFeaturization(params)
+        return DescriptorFeaturization(params, random_state=random_state, seed=seed)
     elif params.featurizer in ('computed_descriptors'):
-        return ComputedDescriptorFeaturization(params)
+        return ComputedDescriptorFeaturization(params, random_state=random_state, seed=seed)
     else:
         raise ValueError("Unknown featurization type %s" % params.featurizer)
 
@@ -504,7 +510,7 @@ class Featurization(object):
         feat_type (str): Type of featurizer, set in __init__
 
     """
-    def __init__(self, params):
+    def __init__(self, params, random_state=None, seed=None):
         """Initializes a Featurization object.
 
         Args:
@@ -514,6 +520,9 @@ class Featurization(object):
         """
 
         self.feat_type = params.featurizer
+        self.random_state = random_state
+        self.seed = seed
+        print("the seed used to initialize the Featurization class is:", seed)
 
     # ****************************************************************************************
     def featurize_data(self, dset_df, params, contains_responses):
@@ -572,7 +581,7 @@ class Featurization(object):
         raise NotImplementedError
 
     # ****************************************************************************************
-    def create_feature_transformer(self, dataset):
+    def create_feature_transformer(self, dataset, random_state=None, seed=None):
         """Fit a scaling and centering transformation to the feature matrix of the given dataset, and return a
         DeepChem transformer object holding its parameters.
 
@@ -634,7 +643,7 @@ class DynamicFeaturization(Featurization):
             feat_type (str): Type of featurizer in ['ecfp','graphconv','molvae']
             featurization_obj: The DeepChem or MoleculeVAEFeaturizer object as determined by feat_type and params
     """
-    def __init__(self, params):
+    def __init__(self, params, random_state=None, seed=None):
         """Initializes a DynamicFeaturization object.
 
         Args:
@@ -649,7 +658,11 @@ class DynamicFeaturization(Featurization):
                 featurization_obj: The DeepChem or MoleculeVAEFeaturizer object as determined by feat_type and params
         """
 
-        super().__init__(params)
+        super().__init__(params, random_state, seed)
+        self.random_state= random_state
+        self.seed = seed
+        print("the seed being used for the DynamicFeaturization class is:", self.seed)
+        
         if self.feat_type == 'ecfp':
             self.featurizer_obj = dc.feat.CircularFingerprint(size=params.ecfp_size, radius=params.ecfp_radius)
         elif self.feat_type == 'graphconv':
@@ -660,13 +673,16 @@ class DynamicFeaturization(Featurization):
         elif self.feat_type == 'embedding':
             # EmbeddingFeaturization doesn't map directly to a DeepChem featurizer
             self.featurizer_obj = None
-
+            
+        # pass in the random state and seed to ensure continuity 
+        
         #TODO: MoleculeVAEFeaturizer is not working currently. Will be replaced by JT-VAE and cWAE
         # featurizers eventually.
         #elif self.feat_type == 'molvae':
         #    self.featurizer_obj = MoleculeVAEFeaturizer(params.mol_vae_model_file)
         else:
             raise ValueError("Unknown featurization type %s" % self.feat_type)
+        #self.random_state = random_state
 
     # ****************************************************************************************
     def __str__(self):
@@ -762,7 +778,7 @@ class DynamicFeaturization(Featurization):
         return features, ids, vals, attr, w, featurized_dset_df
 
     # ****************************************************************************************
-    def create_feature_transformer(self, dataset):
+    def create_feature_transformer(self, dataset, random_state=None, seed=None):
         """Fit a scaling and centering transformation to the feature matrix of the given dataset, and return a
         DeepChem transformer object holding its parameters.
 
@@ -875,7 +891,7 @@ class EmbeddingFeaturization(DynamicFeaturization):
     DeepChem model must implement the predict_embedding function.
     """
 
-    def __init__(self, params):
+    def __init__(self, params, random_state=None, seed=None):
         """Initializes an EmbeddingFeaturization object.
 
         Args:
@@ -888,14 +904,18 @@ class EmbeddingFeaturization(DynamicFeaturization):
             Sets the following EmbeddingFeaturization attributes:
                 embedding_pipeline: A ModelPipeline object for the embedding model.
         """
-        super().__init__(params)
+        super().__init__(params, random_state, seed)
+        self.random_state = random_state
+        self.seed = seed
+        print("the seed used for the EmbeddingFeaturization class is:", self.seed)
+        
         log_level = log.getEffectiveLevel()
         if params.embedding_model_path is not None:
             self.embedding_pipeline = mp.create_prediction_pipeline_from_file(params, reload_dir=None,
-                                        model_path=params.embedding_model_path)
+                                        model_path=params.embedding_model_path, random_state=self.random_state, seed=self.seed)
         elif params.embedding_model_uuid is not None:
             self.embedding_pipeline = mp.create_prediction_pipeline(params, params.embedding_model_uuid,
-                                        collection_name=params.embedding_model_collection)
+                                        collection_name=params.embedding_model_collection, random_state=self.random_state, seed=self.seed)
         else:
             raise ValueError("EmbeddingFeaturizer: must specify either embedding_model_uuid or embedding_model_path")
         # Restore the logging level, which may have been changed by the create_prediction_pipeline function
@@ -1098,7 +1118,7 @@ class PersistentFeaturization(Featurization):
         raise NotImplementedError
 
     # ****************************************************************************************
-    def create_feature_transformer(self, dataset):
+    def create_feature_transformer(self, dataset, random_state=None, seed=None):
         """Fit a scaling and centering transformation to the feature matrix of the given dataset, and return a
         DeepChem transformer object holding its parameters.
 
@@ -1221,7 +1241,7 @@ class DescriptorFeaturization(PersistentFeaturization):
 
         cls.supported_descriptor_types = list(cls.desc_type_source.keys())
 
-    def __init__(self, params):
+    def __init__(self, params, random_state=None, seed=None):
         """Initializes a DescriptorFeaturization object. This is a good place to load data used by the featurizer,
         such as a table of descriptors.
 
@@ -1248,8 +1268,12 @@ class DescriptorFeaturization(PersistentFeaturization):
 
             desc_smiles_col (str): Name of the column in precomp_descr_table, if any, containing compound SMILES
         """
-        super().__init__(params)
+        super().__init__(params, random_state, seed)
         cls = self.__class__
+
+        self.random_state = random_state
+        self.seed = seed
+        print("The seed used in the DescriptorFeaturization class is:", self.seed)
         # Load mapping between descriptor types and lists of descriptors
         if not params.datastore:
             params.descriptor_spec_bucket = ''
@@ -1536,7 +1560,7 @@ class DescriptorFeaturization(PersistentFeaturization):
         return len(self.get_feature_columns())
 
     # ****************************************************************************************
-    def create_feature_transformer(self, dataset):
+    def create_feature_transformer(self, dataset, random_state=None, seed=None):
         """Fit a scaling and centering transformation to the feature matrix of the given dataset, and return a
         DeepChem transformer object holding its parameters.
 
@@ -1546,7 +1570,8 @@ class DescriptorFeaturization(PersistentFeaturization):
         Returns:
             (list of DeepChem transformer objects): list of transformers for the feature matrix
         """
-        transformers_x = [trans.NormalizationTransformerMissingData(transform_X=True, dataset=dataset)]
+        print("(featurization.py) the seed used for create_feature_transformer is:", seed)
+        transformers_x = [trans.NormalizationTransformerMissingData(transform_X=True, dataset=dataset, random_state=random_state, seed=seed)]
         return transformers_x
 
 
@@ -1589,7 +1614,7 @@ class ComputedDescriptorFeaturization(DescriptorFeaturization):
     """
 
 
-    def __init__(self, params):
+    def __init__(self, params, random_state=None, seed=None):
         """Initializes a ComputedDescriptorFeaturization object.
 
         Args:
@@ -1610,7 +1635,10 @@ class ComputedDescriptorFeaturization(DescriptorFeaturization):
             precomp_descr_table (pd.DataFrame): initialized as an empty DataFrame, will be overridden to contain
             the full descriptor table
         """
-        super().__init__(params)
+        super().__init__(params, random_state, seed)
+        self.random_state = random_state
+        self.seed = seed
+        print("The seed used in the ComputedDescriptorsFeaturizer class is:", self.seed)
         cls = self.__class__
         if not params.descriptor_type in cls.supported_descriptor_types:
             raise ValueError("Descriptor type %s is not in the supported descriptor_type list" % params.descriptor_type)

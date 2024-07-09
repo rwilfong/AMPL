@@ -15,7 +15,7 @@ import deepchem as dc
 
 # =========================================== METHODS ==============================================
 
-def apply_sampling_method_dev(train, params):
+def apply_sampling_method_dev(train, params, random_state=None, seed=None):
     """Apply a sampling method to a classification dataset
     Inputs: 
         - train: a dc.data.NumpyDataset object
@@ -28,7 +28,7 @@ def apply_sampling_method_dev(train, params):
     sampling_k_neighbors = params.sampling_k_neighbors
     
     if params.sampling_method == 'SMOTE':
-        smote = SMOTE(sampling_strategy=sampling_ratio, k_neighbors=sampling_k_neighbors)
+        smote = SMOTE(sampling_strategy=sampling_ratio, k_neighbors=sampling_k_neighbors, random_state=random_state)
         X_resampled, y_resampled = smote.fit_resample(train.X, train.y)
         
         # Calculate synthetic weights
@@ -43,7 +43,7 @@ def apply_sampling_method_dev(train, params):
         new_ids = np.concatenate([train.ids, synthetic_ids])
         
     elif params.sampling_method == 'undersampling':
-        undersampler = RandomUnderSampler(sampling_strategy=sampling_ratio)
+        undersampler = RandomUnderSampler(sampling_strategy=sampling_ratio, random_state=random_state)
         X_resampled, y_resampled = undersampler.fit_resample(train.X, train.y)
         
         # Adjust weights and ids

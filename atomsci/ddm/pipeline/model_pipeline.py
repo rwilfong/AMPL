@@ -63,7 +63,7 @@ def calc_AD_kmean_dist(train_dset, pred_dset, k, train_dset_pair_distance=None, 
 
 # ---------------------------------------------
 def calc_AD_kmean_local_density(train_dset, pred_dset, k, train_dset_pair_distance=None, dist_metric="euclidean"):
-    """Evaluate the AD of pred data by comparing the distance betweenthe unseen object and its k nearest neighbors in the training set to the distance between these k nearest neighbors and their k nearest neighbors in the training set. Return the distance ratio. Greater than 1 means the pred data is far from the domain."""
+    """Evaluate the AD of pred data by comparing the distance betweenthe unseen object and its k nearest neighbors in the training set to the distance between these k nearest neighbors and their k nearest neighbors in thed training set. Return the distance ratio. Greater than 1 means the pred data is far from the domain."""
     if train_dset_pair_distance is None:
         # calculate the pair-wise distance of training set
         train_dset_pair_distance = pairwise_distances(X=train_dset, metric=dist_metric)
@@ -196,6 +196,7 @@ class ModelPipeline:
         self.random_gen = rs.RandomStateGenerator(params, seed=getattr(params, 'seed', None))
         self.random_state = self.random_gen.get_random_state()
         self.seed = self.random_gen.get_seed()
+        print("Initializing model pipeline with seed", self.seed) 
         self.log.info('Initiating ModelPipeline with seed {}'.format(self.random_gen.get_seed()))
         
         # Default dataset_name parameter from dataset_key
@@ -246,7 +247,7 @@ class ModelPipeline:
 
         # ****************************************************************************************
 
-    def load_featurize_data(self, params=None):
+    def load_featurize_data(self, params=None, random_state=None, seed=None):
         """Loads the dataset from the datastore or the file system and featurizes it. If we are training
         a new model, split the dataset into training, validation and test sets.
 
@@ -269,11 +270,15 @@ class ModelPipeline:
         ##### ADDED BY ROSE ##########
         #seed = self.random_gen.get_seed()
         # use random state for reproducibility 
-        #random_state = self.random_state
-        print("seed used:", self.random_gen.get_seed())
+        random_state = self.random_state
+        seed = self.seed
+        print("(model_pipeline.py) seed used to load featurized data:", self.random_gen.get_seed())
+        print("(model_pipeline.py) testing self.seed:", self.seed)
         
-        self.data = model_datasets.create_model_dataset(params, self.featurization, self.ds_client) ##### ADDED SEED   random_state=self.random_state
-        self.data.get_featurized_data(params)
+        
+        self.data = model_datasets.create_model_dataset(params, self.featurization, self.ds_client, random_state=self.random_state, seed=self.seed) 
+        ##### ADDED SEED
+        self.data.get_featurized_data(params, random_state=self.random_state, seed=self.seed)
 
         if self.run_mode == 'training':
             # Ignore previously split if in production mode
@@ -282,9 +287,9 @@ class ModelPipeline:
                 self.log.info('Training in production mode. Ignoring '
                     'previous split and creating production split. '
                     'Production split will not be saved.')
-                self.data.split_dataset()
-            elif not (params.previously_split and self.data.load_presplit_dataset()):
-                self.data.split_dataset() # do i need to pass the random state into this? random_state=self.random_state
+                self.data.split_dataset(random_state=self.random_state, seed=self.seed)
+            elif not (params.previously_split and self.data.load_presplit_dataset(random_state=self.random_state, seed=self.seed)):
+                self.data.split_dataset(random_state=self.random_state, seed=self.seed)
                 self.data.save_split_dataset()
             if self.data.params.prediction_type == 'classification':
                 self.data._validate_classification_dataset()
@@ -292,17 +297,17 @@ class ModelPipeline:
         # is fitted to the training data only. The transformers are then applied to the training,
         # validation and test sets separately.
         if not params.split_only:
-            self.model_wrapper.create_transformers(self.data) # maybe add a seed  andom_state=self.random_state
+            self.model_wrapper.create_transformers(self.data, random_state=self.random_state, seed=self.seed) 
         else:
             self.run_mode = ''
 
         if self.run_mode == 'training':
             for i, (train, valid) in enumerate(self.data.train_valid_dsets):
-                train = self.model_wrapper.transform_dataset(train ) #random_state=self.random_state
+                train = self.model_wrapper.transform_dataset(train) #random_state=self.random_state
                 valid = self.model_wrapper.transform_dataset(valid) #, random_state=self.random_state
                 if self.data.params.prediction_type == 'classification' and self.params.sampling_method is not None:
                     #if self.params.split_strategy == 'train_valid_test':
-                    train=sample.apply_sampling_method(train, params) #, random_state=self.random_state
+                    train=sample.apply_sampling_method(train, params, random_state=random_state, seed=seed) #, random_state=self.random_state
                 self.data.train_valid_dsets[i] = (train, valid)
             print("moving to transforming the dataset!")
             self.data.test_dset = self.model_wrapper.transform_dataset(self.data.test_dset) #, random_state=self.random_state
@@ -569,13 +574,14 @@ class ModelPipeline:
         ###### SEED AND RNG ######
         #random_state=self.random_state
         #or
-        #random_state=self.random_gen.get_random_state()
-        #print("splitting dataset, trying self.random_seed:", self.random_seed)
-        #print("seed used:", self.random_gen.get_seed())
+        random_state=self.random_gen.get_random_state()
+        seed = self.random_gen.get_seed()
+        print("(model_pipeline.py) splitting dataset, trying self.random_seed:", seed)
+        print("(model_pipeline.py) seed used:", self.random_gen.get_seed())
         ##################################################
 
         if featurization is None:
-            featurization = feat.create_featurization(self.params) #, random_state=self.random_state
+            featurization = feat.create_featurization(self.params, random_state=random_state, seed=seed) #, random_state=self.random_state
         self.featurization = featurization
         self.load_featurize_data()
         return self.data.split_uuid
@@ -612,8 +618,10 @@ class ModelPipeline:
             #random_state=self.random_gen.get_random_state()
         #if seed is None:
             #seed = self.random_gen.get_seed()
+        random_state = self.random_gen.get_random_state()
+        seed = self.random_gen.get_seed()
             
-        #print("the seed used for training is:", seed)
+        print("(model_pipeline) the seed used for training is:", seed)
         ##################################################
         
 
@@ -624,22 +632,21 @@ class ModelPipeline:
             if len(self.params.response_cols) < 2:
                 raise Exception("The dataset of a hybrid model should have two response columns, one for activities, one for concentrations.")
         if featurization is None:
-            featurization = feat.create_featurization(self.params)
+            featurization = feat.create_featurization(self.params, random_state=random_state, seed=seed)
         self.featurization = featurization
 
         ## create model wrapper if not split_only
         if not self.params.split_only:
-            self.model_wrapper = model_wrapper.create_model_wrapper(self.params, self.featurization, self.ds_client) #elf.random_state,
+            self.model_wrapper = model_wrapper.create_model_wrapper(self.params, self.featurization, self.ds_client, random_state=random_state, seed=seed)
             self.model_wrapper.setup_model_dirs()
 
-        self.load_featurize_data()
+        self.load_featurize_data(random_state=random_state, seed=seed)
 
         ## return if split only
         if self.params.split_only:
             return
-
-        # pass in random state to train? 
-        self.model_wrapper.train(self)
+ 
+        self.model_wrapper.train(self, random_state=random_state, seed=seed)
 
         # Create the metadata for the trained model
         self.create_model_metadata()
@@ -689,13 +696,14 @@ class ModelPipeline:
 
         self.run_mode = 'prediction'
         ##### SEED #####
-        #seed = self.random_gen.get_seed()
-        #print("the seed used for model prediction is:", seed)
+        random_state = self.random_gen.get_random_state()
+        seed = self.random_gen.get_seed()
+        print("the seed used for model prediction is:", seed)
         #set_seed(seed) 
         ###############
 
         if featurization is None:
-            featurization = feat.create_featurization(self.params)
+            featurization = feat.create_featurization(self.params, random_state=random_state, seed=seed)
         self.featurization = featurization
         # Load the dataset to run predictions on and featurize it
         self.load_featurize_data()
@@ -1227,7 +1235,7 @@ def regenerate_results(result_dir, params=None, metadata_dict=None, shared_featu
 
 
 # ****************************************************************************************
-def create_prediction_pipeline(params, model_uuid, collection_name=None, featurization=None, alt_bucket='CRADA'):
+def create_prediction_pipeline(params, model_uuid, collection_name=None, featurization=None, random_state=None, seed=None, alt_bucket='CRADA'):
     """Create a ModelPipeline object to be used for running blind predictions on datasets
     where the ground truth is not known, given a pretrained model in the model tracker database.
 
@@ -1270,6 +1278,10 @@ def create_prediction_pipeline(params, model_uuid, collection_name=None, featuri
     # Parse the saved model metadata to obtain the parameters used to train the model
     model_params = parse.wrapper(metadata_dict)
     orig_params = copy.deepcopy(model_params)
+
+    ## add seed 
+    model_params.seed = seed
+    print("the seed used in create_prediction_pipeline is:", seed)
 
     # Override selected model training data parameters with parameters for current dataset
 
@@ -1342,7 +1354,7 @@ def create_prediction_pipeline(params, model_uuid, collection_name=None, featuri
 
 # ****************************************************************************************
 def create_prediction_pipeline_from_file(params, reload_dir, model_path=None, model_type='best_model', featurization=None,
-                                         verbose=True):
+                                         verbose=True, random_state=None, seed=None):
     """Create a ModelPipeline object to be used for running blind predictions on datasets, given a pretrained model stored
     in the filesystem. The model may be stored either as a gzipped tar archive or as a directory.
 
@@ -1368,6 +1380,8 @@ def create_prediction_pipeline_from_file(params, reload_dir, model_path=None, mo
         pipeline (ModelPipeline): A pipeline object to be used for making predictions.
     """
     log = logging.getLogger('ATOM')
+    ##### SEED ######
+    print("the seed used in create_prediction_pipeline_from_file is:", seed)
 
     # Unpack the model tar archive if one is specified
     if model_path is not None:
@@ -1398,6 +1412,9 @@ def create_prediction_pipeline_from_file(params, reload_dir, model_path=None, mo
     # Parse the saved model metadata to obtain the parameters used to train the model
     model_params = parse.wrapper(config)
     orig_params = copy.deepcopy(model_params)
+
+    ## Add seed to the model parameters for the new application?
+    model_params.seed = seed
 
     # Override selected model training data parameters with parameters for current dataset
 

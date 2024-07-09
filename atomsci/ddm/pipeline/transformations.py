@@ -68,7 +68,7 @@ def get_statistics_missing_ydata(dataset):
     return y_means, y_stds
 
 # ****************************************************************************************
-def create_feature_transformers(params, model_dataset):
+def create_feature_transformers(params, model_dataset, random_state=None, seed=None):
     """Fit a scaling and centering transformation to the feature matrix of the given dataset, and return a
     DeepChem transformer object holding its parameters.
 
@@ -80,18 +80,20 @@ def create_feature_transformers(params, model_dataset):
     Returns:
         (list of DeepChem transformer objects): list of transformers for the feature matrix
     """
+    print("(transformations.py) the seed being used in create_feature_transformers is:", seed)
     if params.feature_transform_type == 'umap':
         # Map feature vectors using UMAP for dimension reduction
         if model_dataset.split_strategy == 'k_fold_cv':
             log.warning("Warning: UMAP transformation may produce misleading results when used with K-fold split strategy.")
         train_dset = model_dataset.train_valid_dsets[0][0]
-        transformers_x = [UMAPTransformer(params, train_dset)]
+        transformers_x = [UMAPTransformer(params, train_dset, random_state=random_state, seed=seed)]
+        print("UMAP and Imputer are deterministic, probably do not need to pass in a random state")
     elif params.transformers==True:
         # TODO: Transformers on responses and features should be controlled only by parameters
         # response_transform_type and feature_transform_type, rather than params.transformers.
 
         # Scale and center feature matrix if featurization type calls for it
-        transformers_x = model_dataset.featurization.create_feature_transformer(model_dataset.dataset)
+        transformers_x = model_dataset.featurization.create_feature_transformer(model_dataset.dataset, random_state=random_state, seed=seed)
     else:
         transformers_x = []
 
@@ -153,7 +155,7 @@ class UMAPTransformer(Transformer):
         scaler (RobustScaler): Centering/scaling transformer
 
     """
-    def __init__(self, params, dataset):
+    def __init__(self, params, dataset, random_state=None, seed=None):
         """Initializes a UMAPTransformer object.
 
         Args:
@@ -165,6 +167,10 @@ class UMAPTransformer(Transformer):
         # TODO: decide whether to make n_epochs a parameter
         #default_n_epochs = None
         default_n_epochs = 500
+
+        self.random_state = random_state
+        self.seed = seed 
+        print("(transformations.py) the seed used in UMAPTransformer class is:", self.seed)
 
         if params.prediction_type == 'classification':
             target_metric = 'categorical'
@@ -210,8 +216,14 @@ class NormalizationTransformerMissingData(NormalizationTransformer):
                  transform_w=False,
                  dataset=None,
                  transform_gradients=False,
-                 move_mean=True) :
-
+                 move_mean=True,
+                 random_state=None, 
+                 seed=None) :
+        
+        self.random_state = random_state
+        self.seed = seed
+        print("(transformations.py) the seed used to initialize NormalizationTransformerMissingData is:", self.seed)
+        
         if transform_X :
             X_means, X_stds = dataset.get_statistics(X_stats=True, y_stats=False)
             self.X_means = X_means
