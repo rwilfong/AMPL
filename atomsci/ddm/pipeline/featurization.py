@@ -525,7 +525,7 @@ class Featurization(object):
         print("the seed used to initialize the Featurization class is:", seed)
 
     # ****************************************************************************************
-    def featurize_data(self, dset_df, params, contains_responses):
+    def featurize_data(self, dset_df, params, contains_responses, random_state=None, seed=None):
         """Perform featurization on the given dataset.
 
         Args:
@@ -544,7 +544,7 @@ class Featurization(object):
         raise NotImplementedError
 
     # ****************************************************************************************
-    def extract_prefeaturized_data(self, featurized_dset_df, params):
+    def extract_prefeaturized_data(self, featurized_dset_df, params, random_state=None, seed=None):
         """Extracts dataset features, values, IDs and attributes from the given prefeaturized data frame.
         Args:
             featurized_dset_df (DataFrame): Data frame for the dataset.
@@ -700,7 +700,7 @@ class DynamicFeaturization(Featurization):
         return self.featurizer_obj.featurize(mols)
 
     # ****************************************************************************************
-    def extract_prefeaturized_data(self, featurized_dset_df, params):
+    def extract_prefeaturized_data(self, featurized_dset_df, params, random_state=None, seed=None):
         """Attempts to extract prefeaturized data for the given dataset. For dynamic featurizers, we don't save
         this data, so this method always returns None.
 
@@ -939,7 +939,7 @@ class EmbeddingFeaturization(DynamicFeaturization):
         raise NotImplementedError
 
     # ****************************************************************************************
-    def featurize_data(self, dset_df, params, contains_responses):
+    def featurize_data(self, dset_df, params, contains_responses, random_state=None, seed=None):
         """Perform featurization on the given dataset.
 
         Args:
@@ -969,11 +969,13 @@ class EmbeddingFeaturization(DynamicFeaturization):
 
         # First featurize the molecules in dset_df using the featurizer of the embedding model. 
 
+        print("(featurization.py) the seed used to featurize_data (EmbeddingFeature) is:", seed)
+        
         input_featurization = self.embedding_pipeline.model_wrapper.featurization
         self.embedding_pipeline.featurization = input_featurization
 
         input_model_dataset = md.create_minimal_dataset(self.embedding_pipeline.params,
-                                    input_featurization, contains_responses=True)
+                                    input_featurization, contains_responses=True, random_state=random_state, seed=seed)
 
         input_dset_df = dset_df.copy()
         if contains_responses:
@@ -981,7 +983,7 @@ class EmbeddingFeaturization(DynamicFeaturization):
             for orig_col, embed_col in zip(params.response_cols, self.embedding_pipeline.params.response_cols):
                 colmap[orig_col] = embed_col
             input_dset_df = input_dset_df.rename(columns=colmap)
-        input_model_dataset.get_featurized_data(input_dset_df)
+        input_model_dataset.get_featurized_data(input_dset_df, random_state=random_state)
         input_dataset = input_model_dataset.dataset
         input_features = input_dataset.X
         ids = input_dataset.ids
@@ -1070,7 +1072,7 @@ class PersistentFeaturization(Featurization):
         super().__init__(params)
 
     # ****************************************************************************************
-    def extract_prefeaturized_data(self, featurized_dset_df, params):
+    def extract_prefeaturized_data(self, featurized_dset_df, params, random_state=None, seed=None):
         """Attempts to extract prefeaturized data for the given dataset.
 
         Args:
@@ -1305,7 +1307,7 @@ class DescriptorFeaturization(PersistentFeaturization):
 
 
     # ****************************************************************************************
-    def extract_prefeaturized_data(self, featurized_dset_df, params):
+    def extract_prefeaturized_data(self, featurized_dset_df, params, random_state=None, seed=None):
         """Attempts to retrieve prefeaturized data for the given dataset.
 
         Args:
@@ -1325,9 +1327,10 @@ class DescriptorFeaturization(PersistentFeaturization):
             vals (np.array): array of response values.
 
         """
+        print("(featurization.py) the seed used to extract prefeaturized data in DescriptorFeaturization is:", seed)
         md.check_task_columns(params, featurized_dset_df)
         user_specified_features = self.get_feature_columns()
-        featurizer_obj = dc.feat.UserDefinedFeaturizer(user_specified_features)
+        featurizer_obj = dc.feat.UserDefinedFeaturizer(user_specified_features, seed=seed)
         features = get_user_specified_features(featurized_dset_df, featurizer=featurizer_obj,
                                                                    verbose=False)
         features = features.astype(float)
@@ -1431,7 +1434,7 @@ class DescriptorFeaturization(PersistentFeaturization):
 
 
     # ****************************************************************************************
-    def featurize_data(self, dset_df, params, contains_responses):
+    def featurize_data(self, dset_df, params, contains_responses, random_state=None, seed=None):
         """Perform featurization on the given dataset.
 
         Args:
@@ -1464,6 +1467,9 @@ class DescriptorFeaturization(PersistentFeaturization):
         Side effects:
             Overwrites the attribute precomp_descr_table (pd.DataFrame) with the appropriate descriptor table
         """
+
+        print("(featurization.py) the seed used to featurize the data (DescriptorFeaturization) is:", seed)
+        
         # Compound ID and SMILES columns will be labeled the same as in the input dataset, unless overridden by
         # properties of the precomputed descriptor table
         self.load_descriptor_table(params)
@@ -1487,7 +1493,7 @@ class DescriptorFeaturization(PersistentFeaturization):
 
         featurizer_obj = dc.feat.UserDefinedFeaturizer(user_specified_features)
         features = get_user_specified_features(featurized_dset_df, featurizer=featurizer_obj,
-                                                                   verbose=False)
+                                                                   verbose=False, random_state=random_state)
         if features is None:
             raise Exception("Featurization failed for dataset")
 

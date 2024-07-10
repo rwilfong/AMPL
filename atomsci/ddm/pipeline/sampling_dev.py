@@ -23,12 +23,13 @@ def apply_sampling_method_dev(train, params, random_state=None, seed=None):
     Returns:
         - train_resampled: a dc.data.NumpyDataset object with resampled data
     """
+    print("(sampling_dev) the seed used in apply_sampling_method is:", seed)
     
     sampling_ratio = params.sampling_ratio
     sampling_k_neighbors = params.sampling_k_neighbors
     
     if params.sampling_method == 'SMOTE':
-        smote = SMOTE(sampling_strategy=sampling_ratio, k_neighbors=sampling_k_neighbors, random_state=random_state)
+        smote = SMOTE(sampling_strategy=sampling_ratio, k_neighbors=sampling_k_neighbors, random_state=seed)
         X_resampled, y_resampled = smote.fit_resample(train.X, train.y)
         
         # Calculate synthetic weights
@@ -43,7 +44,7 @@ def apply_sampling_method_dev(train, params, random_state=None, seed=None):
         new_ids = np.concatenate([train.ids, synthetic_ids])
         
     elif params.sampling_method == 'undersampling':
-        undersampler = RandomUnderSampler(sampling_strategy=sampling_ratio, random_state=random_state)
+        undersampler = RandomUnderSampler(sampling_strategy=sampling_ratio, random_state=seed)
         X_resampled, y_resampled = undersampler.fit_resample(train.X, train.y)
         
         # Adjust weights and ids
