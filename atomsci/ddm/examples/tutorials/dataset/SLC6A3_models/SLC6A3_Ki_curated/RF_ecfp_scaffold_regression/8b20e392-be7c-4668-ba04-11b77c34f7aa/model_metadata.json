@@ -1,0 +1,192 @@
+{
+    "ecfp_specific": {
+        "ecfp_radius": 2,
+        "ecfp_size": 1024
+    },
+    "model_parameters": {
+        "ampl_version": "1.6.1",
+        "class_number": 2,
+        "featurizer": "ecfp",
+        "hyperparam_uuid": null,
+        "model_bucket": "public",
+        "model_choice_score_type": "r2",
+        "model_type": "RF",
+        "num_model_tasks": 1,
+        "prediction_type": "regression",
+        "save_results": false,
+        "system": "twintron-blue",
+        "time_generated": 1719000458.5786712,
+        "transformer_bucket": "",
+        "transformer_key": "dataset/SLC6A3_models/SLC6A3_Ki_curated/RF_ecfp_scaffold_regression/8b20e392-be7c-4668-ba04-11b77c34f7aa/transformers.pkl",
+        "transformer_oid": "",
+        "transformers": true,
+        "uncertainty": true
+    },
+    "model_uuid": "8b20e392-be7c-4668-ba04-11b77c34f7aa",
+    "rf_specific": {
+        "rf_estimators": 129,
+        "rf_max_depth": 32,
+        "rf_max_features": 95
+    },
+    "splitting_parameters": {
+        "base_splitter": "scaffold",
+        "butina_cutoff": 0.6,
+        "cutoff_date": null,
+        "date_col": null,
+        "mtss_num_generations": 20,
+        "mtss_num_pop": 100,
+        "mtss_num_super_scaffolds": 40,
+        "mtss_response_distr_weight": 1.0,
+        "mtss_split_fraction_weight": 1.0,
+        "mtss_train_test_dist_weight": 1.0,
+        "mtss_train_valid_dist_weight": 1.0,
+        "num_folds": 5,
+        "previously_split": true,
+        "split_strategy": "train_valid_test",
+        "split_test_frac": 0.1,
+        "split_uuid": "c35aeaab-910c-4dcf-8f9f-04b55179aa1a",
+        "split_valid_frac": 0.1,
+        "splitter": "scaffold"
+    },
+    "time_built": 1719000458.58103,
+    "training_dataset": {
+        "bucket": "public",
+        "dataset_hash": "07cd31925f5d5402fefdd13171fc9d18",
+        "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/examples/tutorials/dataset/SLC6A3_Ki_curated.csv",
+        "dataset_metadata": {},
+        "dataset_oid": null,
+        "datastore": false,
+        "external_export_parameters": {
+            "result_dir": "dataset/SLC6A3_models"
+        },
+        "feature_transform_type": "normalization",
+        "id_col": "compound_id",
+        "production": true,
+        "response_cols": [
+            "avg_pKi"
+        ],
+        "response_transform_type": "normalization",
+        "smiles_col": "base_rdkit_smiles",
+        "weight_transform_type": null
+    },
+    "training_metrics": [
+        {
+            "input_dataset": {
+                "bucket": "public",
+                "dataset_hash": "07cd31925f5d5402fefdd13171fc9d18",
+                "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/examples/tutorials/dataset/SLC6A3_Ki_curated.csv",
+                "dataset_metadata": {},
+                "dataset_oid": null,
+                "datastore": false,
+                "external_export_parameters": {
+                    "result_dir": "dataset/SLC6A3_models"
+                },
+                "feature_transform_type": "normalization",
+                "id_col": "compound_id",
+                "production": true,
+                "response_cols": [
+                    "avg_pKi"
+                ],
+                "response_transform_type": "normalization",
+                "smiles_col": "base_rdkit_smiles",
+                "weight_transform_type": null
+            },
+            "label": "best",
+            "metrics_type": "training",
+            "model_uuid": "8b20e392-be7c-4668-ba04-11b77c34f7aa",
+            "prediction_results": {
+                "mae_score": 0.2101703545858951,
+                "mean_response_vals": [
+                    6.424967844630288
+                ],
+                "num_compounds": 1819,
+                "r2_score": 0.9469258655536513,
+                "rms_score": 0.28515328263061135,
+                "std_response_vals": [
+                    1.237761344108214
+                ]
+            },
+            "subset": "train",
+            "time_run": 1719000458.581755
+        },
+        {
+            "input_dataset": {
+                "bucket": "public",
+                "dataset_hash": "07cd31925f5d5402fefdd13171fc9d18",
+                "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/examples/tutorials/dataset/SLC6A3_Ki_curated.csv",
+                "dataset_metadata": {},
+                "dataset_oid": null,
+                "datastore": false,
+                "external_export_parameters": {
+                    "result_dir": "dataset/SLC6A3_models"
+                },
+                "feature_transform_type": "normalization",
+                "id_col": "compound_id",
+                "production": true,
+                "response_cols": [
+                    "avg_pKi"
+                ],
+                "response_transform_type": "normalization",
+                "smiles_col": "base_rdkit_smiles",
+                "weight_transform_type": null
+            },
+            "label": "best",
+            "metrics_type": "training",
+            "model_uuid": "8b20e392-be7c-4668-ba04-11b77c34f7aa",
+            "prediction_results": {
+                "mae_score": 0.2101703545858951,
+                "mean_response_vals": [
+                    6.424967844630288
+                ],
+                "model_choice_score": 0.9469258655536513,
+                "num_compounds": 1819,
+                "r2_score": 0.9469258655536513,
+                "rms_score": 0.28515328263061135,
+                "std_response_vals": [
+                    1.237761344108214
+                ]
+            },
+            "subset": "valid",
+            "time_run": 1719000458.581755
+        },
+        {
+            "input_dataset": {
+                "bucket": "public",
+                "dataset_hash": "07cd31925f5d5402fefdd13171fc9d18",
+                "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/examples/tutorials/dataset/SLC6A3_Ki_curated.csv",
+                "dataset_metadata": {},
+                "dataset_oid": null,
+                "datastore": false,
+                "external_export_parameters": {
+                    "result_dir": "dataset/SLC6A3_models"
+                },
+                "feature_transform_type": "normalization",
+                "id_col": "compound_id",
+                "production": true,
+                "response_cols": [
+                    "avg_pKi"
+                ],
+                "response_transform_type": "normalization",
+                "smiles_col": "base_rdkit_smiles",
+                "weight_transform_type": null
+            },
+            "label": "best",
+            "metrics_type": "training",
+            "model_uuid": "8b20e392-be7c-4668-ba04-11b77c34f7aa",
+            "prediction_results": {
+                "mae_score": 0.2101703545858951,
+                "mean_response_vals": [
+                    6.424967844630288
+                ],
+                "num_compounds": 1819,
+                "r2_score": 0.9469258655536513,
+                "rms_score": 0.28515328263061135,
+                "std_response_vals": [
+                    1.237761344108214
+                ]
+            },
+            "subset": "test",
+            "time_run": 1719000458.5817559
+        }
+    ]
+}

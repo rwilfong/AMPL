@@ -538,6 +538,31 @@ the model will train for max_epochs regardless of validation error.|
 |*Type:*|str|
 
 - **sampling_method**  
+<<<<<<< HEAD
+=======
+  
+|||
+|-|-|
+|*Description:*|The sampling method for addressing class imbalance in classification datasets. Options include 'undersampling' and 'SMOTE'.|
+|*Default:*|None|
+|*Type:*|str|
+
+- **sampling_ratio**  
+  
+|||
+|-|-|
+|*Description:*|The desired ratio of the minority class to the majority class after sampling (e.g., if str, 'minority', 'not minority'; if float, '0.2', '1.0'). |
+|*Default:*|auto|
+|*Type:*|str|
+
+- **sampling_k_neighbors**  
+  
+|||
+|-|-|
+|*Description:*|The number of nearest neighbors to consider when generating synthetic samples (e.g., 5, 7, 9). Specifically used for SMOTE sampling method.|
+|*Default:*|5|
+|*Type:*|int|
+>>>>>>> 1.6.1_rose_dev
   
 |||
 |-|-|

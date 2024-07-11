@@ -68,7 +68,7 @@ def get_statistics_missing_ydata(dataset):
     return y_means, y_stds
 
 # ****************************************************************************************
-def create_feature_transformers(params, model_dataset):
+def create_feature_transformers(params, model_dataset, random_state=None, seed=None):
     """Fit a scaling and centering transformation to the feature matrix of the given dataset, and return a
     DeepChem transformer object holding its parameters.
 
@@ -80,25 +80,27 @@ def create_feature_transformers(params, model_dataset):
     Returns:
         (list of DeepChem transformer objects): list of transformers for the feature matrix
     """
+    print("(transformations.py) the seed being used in create_feature_transformers is:", seed)
     if params.feature_transform_type == 'umap':
         # Map feature vectors using UMAP for dimension reduction
         if model_dataset.split_strategy == 'k_fold_cv':
             log.warning("Warning: UMAP transformation may produce misleading results when used with K-fold split strategy.")
         train_dset = model_dataset.train_valid_dsets[0][0]
-        transformers_x = [UMAPTransformer(params, train_dset)]
+        transformers_x = [UMAPTransformer(params, train_dset, random_state=random_state, seed=seed)]
+        print("UMAP and Imputer are deterministic, probably do not need to pass in a random state")
     elif params.transformers==True:
         # TODO: Transformers on responses and features should be controlled only by parameters
         # response_transform_type and feature_transform_type, rather than params.transformers.
 
         # Scale and center feature matrix if featurization type calls for it
-        transformers_x = model_dataset.featurization.create_feature_transformer(model_dataset.dataset)
+        transformers_x = model_dataset.featurization.create_feature_transformer(model_dataset.dataset, random_state=random_state, seed=seed)
     else:
         transformers_x = []
 
     return transformers_x
 
 # ****************************************************************************************
-def create_weight_transformers(params, model_dataset):
+def create_weight_transformers(params, model_dataset, random_state=None, seed=None):
     """Fit an optional balancing transformation to the weight matrix of the given dataset, and return a
     DeepChem transformer object holding its parameters.
 
@@ -110,9 +112,10 @@ def create_weight_transformers(params, model_dataset):
     Returns:
         (list of DeepChem transformer objects): list of transformers for the weight matrix
     """
+    print("(transformations.py) the seed used in create_weight_transformers is:", seed)
     if params.weight_transform_type == 'balancing':
         if params.prediction_type == 'classification':
-            transformers_w = [BalancingTransformer(model_dataset.dataset)]
+            transformers_w = [BalancingTransformer(model_dataset.dataset, seed=seed)]
         else:
             log.warning("Warning: Balancing transformer only supported for classification models.")
             transformers_w = []
@@ -153,7 +156,7 @@ class UMAPTransformer(Transformer):
         scaler (RobustScaler): Centering/scaling transformer
 
     """
-    def __init__(self, params, dataset):
+    def __init__(self, params, dataset, random_state=None, seed=None):
         """Initializes a UMAPTransformer object.
 
         Args:
@@ -166,6 +169,10 @@ class UMAPTransformer(Transformer):
         #default_n_epochs = None
         default_n_epochs = 500
 
+        self.random_state = random_state
+        self.seed = seed 
+        print("(transformations.py) the seed used in UMAPTransformer class is:", self.seed)
+
         if params.prediction_type == 'classification':
             target_metric = 'categorical'
         else:
@@ -173,20 +180,22 @@ class UMAPTransformer(Transformer):
         self.scaler = RobustScaler()
         # Use Imputer to replace missing values (NaNs) with means for each column
         self.imputer = Imputer()
-        scaled_X = self.scaler.fit_transform(self.imputer.fit_transform(dataset.X))
+        scaled_X = self.scaler.fit_transform(self.imputer.fit_transform(dataset.X), seed=seed)
         self.mapper = umap.UMAP(n_neighbors=params.umap_neighbors,
                                 n_components=params.umap_dim,
                                 metric=params.umap_metric,
                                 target_metric=target_metric,
                                 target_weight=params.umap_targ_wt,
                                 min_dist=params.umap_min_dist,
-                                n_epochs=default_n_epochs)
+                                n_epochs=default_n_epochs,
+                                seed=seed)
         # TODO: How to deal with multitask data?
         self.mapper.fit(scaled_X, y=dataset.y.flatten())
 
     # ****************************************************************************************
-    def transform(self, dataset, parallel=False):
-        return super(UMAPTransformer, self).transform(dataset, parallel=parallel)
+    def transform(self, dataset, parallel=False, random_state=None, seed=None):
+        print("(transformations.py) the seed used in transform in UMAPTransform is:", seed)
+        return super(UMAPTransformer, self).transform(dataset, parallel=parallel, random_state=random_state, seed=seed)
 
     # ****************************************************************************************
     def transform_array(self, X, y, w, ids):
@@ -210,8 +219,14 @@ class NormalizationTransformerMissingData(NormalizationTransformer):
                  transform_w=False,
                  dataset=None,
                  transform_gradients=False,
-                 move_mean=True) :
-
+                 move_mean=True,
+                 random_state=None, 
+                 seed=None) :
+        
+        self.random_state = random_state
+        self.seed = seed
+        print("(transformations.py) the seed used to initialize NormalizationTransformerMissingData is:", self.seed)
+        
         if transform_X :
             X_means, X_stds = dataset.get_statistics(X_stats=True, y_stats=False)
             self.X_means = X_means
@@ -237,8 +252,8 @@ class NormalizationTransformerMissingData(NormalizationTransformer):
                 transform_w=transform_w,
                 dataset=dataset)
 
-    def transform(self, dataset, parallel=False):
-        return dataset.transform(self)
+    def transform(self, dataset, parallel=False, random_state=None, seed=None):
+        return dataset.transform(self, seed=seed)
 
     def transform_array(self, X, y, w, ids):
         """Transform the data in a set of (X, y, w) arrays."""
@@ -310,7 +325,9 @@ class NormalizationTransformerHybrid(NormalizationTransformer):
                  transform_y=False,
                  transform_w=False,
                  dataset=None,
-                 move_mean=True) :
+                 move_mean=True,
+                 random_state=None,
+                 seed=None) :
 
         if transform_X :
             X_means, X_stds = dataset.get_statistics(X_stats=True, y_stats=False)
@@ -339,8 +356,8 @@ class NormalizationTransformerHybrid(NormalizationTransformer):
                 transform_w=transform_w,
                 dataset=dataset)
 
-    def transform(self, dataset, parallel=False):
-        return dataset.transform(self)
+    def transform(self, dataset, parallel=False, random_state=None, seed=None):
+        return dataset.transform(self, seed=seed)
 
     def transform_array(self, X, y, w, ids):
         """Transform the data in a set of (X, y, w) arrays."""
