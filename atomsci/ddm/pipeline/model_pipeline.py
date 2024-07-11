@@ -156,7 +156,7 @@ class ModelPipeline:
             data (ModelDataset object): A data object that featurizes and splits the dataset
     """
 
-    def __init__(self, params, ds_client=None, mlmt_client=None):
+    def __init__(self, params, ds_client=None, mlmt_client=None, random_state=None, seed=None):
         """Initializes ModelPipeline object.
 
         Args:
@@ -193,9 +193,20 @@ class ModelPipeline:
         self.start_time = time.time()
 
         ##### SEED METHOD ######
-        self.random_gen = rs.RandomStateGenerator(params, seed=getattr(params, 'seed', None))
-        self.random_state = self.random_gen.get_random_state()
+        if seed is None:
+            seed = getattr(params, 'seed', None)
+        else:
+            self.seed = seed
+        
+        self.random_gen = rs.RandomStateGenerator(params, seed)
+        
+        if random_state is None:
+            self.random_state = self.random_gen.get_random_state()
+        else:
+            self.random_state = random_state
+
         self.seed = self.random_gen.get_seed()
+        
         print("Initializing model pipeline with seed", self.seed) 
         self.log.info('Initiating ModelPipeline with seed {}'.format(self.random_gen.get_seed()))
         
@@ -1283,7 +1294,6 @@ def create_prediction_pipeline(params, model_uuid, collection_name=None, featuri
     orig_params = copy.deepcopy(model_params)
 
     ## add seed 
-    model_params.seed = seed
     print("the seed used in create_prediction_pipeline is:", seed)
 
     # Override selected model training data parameters with parameters for current dataset
@@ -1325,15 +1335,15 @@ def create_prediction_pipeline(params, model_uuid, collection_name=None, featuri
 
     # If the caller didn't provide a featurization object, create one for this model
     if featurization is None:
-        featurization = feat.create_featurization(model_params)
+        featurization = feat.create_featurization(model_params, random_state=random_state, seed=seed)
 
     # Create a ModelPipeline object
-    pipeline = ModelPipeline(model_params, ds_client, mlmt_client)
+    pipeline = ModelPipeline(model_params, ds_client, mlmt_client, random_state=random_state, seed=seed)
     pipeline.orig_params = orig_params
 
     # Create the ModelWrapper object.
     pipeline.model_wrapper = model_wrapper.create_model_wrapper(pipeline.params, featurization,
-                                                                pipeline.ds_client)
+                                                                pipeline.ds_client, random_state=random_state, seed=seed)
 
     if params.verbose:
         pipeline.log.setLevel(logging.DEBUG)
@@ -1462,7 +1472,7 @@ def create_prediction_pipeline_from_file(params, reload_dir, model_path=None, mo
     model_dir = os.path.join(reload_dir, model_type)
 
     # If that worked, reload the saved model training state
-    pipeline.model_wrapper.reload_model(model_dir)
+    pipeline.model_wrapper.reload_model(model_dir, random_state=random_state, seed=seed)
 
     return pipeline
 

@@ -625,7 +625,7 @@ class ModelWrapper(object):
         """
         raise NotImplementedError
 
-    def reload_model(self, reload_dir):
+    def reload_model(self, reload_dir, random_state=None, seed=None):
         """Args:
             reload_dir:
 
@@ -925,8 +925,8 @@ class NNModelWrapper(ModelWrapper):
                                 transformers=self.transformers,
                                 random_state=random_state, 
                                 seed=seed)
-        em.set_make_pred(lambda x: self.model.predict(x, [], seed=seed))
-        em.on_new_best_valid(lambda : 1+1) # does not need to take any action
+        em.set_make_pred(lambda x: self.model.predict(x, []), random_state=random_state, seed=seed)
+        em.on_new_best_valid(lambda : 1+1, random_state=random_state, seed=seed) # does not need to take any action
 
         test_dset = pipeline.data.test_dset
 
@@ -966,7 +966,7 @@ class NNModelWrapper(ModelWrapper):
                 train_perf = train_perf_data.accumulate_preds(train_pred, train_dset.ids, random_state=random_state, seed=seed)
                 test_perf = test_perf_data.accumulate_preds(test_pred, test_dset.ids, random_state=random_state, seed=seed)
 
-                valid_perf = em.accumulate(ei, subset='valid', dset=valid_dset)
+                valid_perf = em.accumulate(ei, subset='valid', dset=valid_dset, random_state=random_state, seed=seed)
                 self.log.info("Fold %d, epoch %d: training %s = %.3f, validation %s = %.3f, test %s = %.3f" % (
                               k, ei, pipeline.metric_type, train_perf, pipeline.metric_type, valid_perf,
                               pipeline.metric_type, test_perf))
@@ -975,7 +975,7 @@ class NNModelWrapper(ModelWrapper):
             # the best_epoch and best score if the new score exceeds the previous best score by a specified
             # threshold.
             em.compute(ei, 'valid', random_state=random_state, seed=seed)
-            em.update_valid(ei)
+            em.update_valid(ei, random_state=random_state, seed=seed)
             if em.should_stop():
                 break
             self.num_epochs_trained = ei + 1
@@ -1043,8 +1043,8 @@ class NNModelWrapper(ModelWrapper):
                                 transformers=self.transformers,
                                random_state=random_state,
                                seed=seed)
-        em.set_make_pred(lambda x: self.model.predict(x, []))
-        em.on_new_best_valid(lambda : self.model.save_checkpoint())
+        em.set_make_pred(lambda x: self.model.predict(x, []), random_state=random_state, seed=seed)
+        em.on_new_best_valid(lambda : self.model.save_checkpoint(), random_state=random_state, seed=seed)
 
         test_dset = pipeline.data.test_dset
         train_dset, valid_dset = pipeline.data.train_valid_dsets[0]
@@ -1239,7 +1239,7 @@ class HybridModelWrapper(NNModelWrapper):
 
             model: dc.models.TorchModel
         """
-        super().__init__(params, featurizer, ds_client, random_state, seeed)
+        super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
 
         self.random_state = random_state
         self.seed = seed
@@ -1446,7 +1446,8 @@ class HybridModelWrapper(NNModelWrapper):
         
         torch.save(checkpoint, checkpoint_file)
 
-    def train(self, pipeline):
+    def train(self, pipeline, random_state=None, seed=None):
+        print('(model_wrapper.py) the seed used to train a hybrid model is:', seed)
         if self.params.loss_func.lower() == "poisson":
             self.loss_func = self._poisson_hybrid_loss
         else:
@@ -1466,13 +1467,15 @@ class HybridModelWrapper(NNModelWrapper):
                                 transformers=self.transformers,
                                 is_ki=self.params.is_ki,
                                 production=self.params.production,
-                                ki_convert_ratio=self.params.ki_convert_ratio)
+                                ki_convert_ratio=self.params.ki_convert_ratio,
+                               random_state=random_state,
+                               seed=seed)
 
-        em.set_make_pred(lambda x: self.generate_predictions(x)[0])
+        em.set_make_pred(lambda x: self.generate_predictions(x)[0], random_state=random_state, seed=seed)
         # initialize ei here so we can use it in the closure
         ei = 0
         em.on_new_best_valid(lambda : self.save_model(checkpoint_file, self.model, 
-            opt, ei, self.model_dict))
+            opt, ei, self.model_dict), random_state=random_state, seed=seed)
 
         train_dset, valid_dset = pipeline.data.train_valid_dsets[0]
         if len(pipeline.data.train_valid_dsets) > 1:
@@ -1623,7 +1626,7 @@ class HybridModelWrapper(NNModelWrapper):
         return model_spec_metadata
 
     # ****************************************************************************************
-    def _create_output_transformers(self, model_dataset):
+    def _create_output_transformers(self, model_dataset, random_state=None, seed=None):
         """Initialize transformers for responses and persist them for later.
 
         Args:
@@ -1634,8 +1637,9 @@ class HybridModelWrapper(NNModelWrapper):
                 transformers: A list of deepchem transformation objects on response_col, only if conditions are met
         """
         # TODO: Just a warning, we may have response transformers for classification datasets in the future
+        print("(model_wrapper.py) the seed used for _create_output_transformers (HybridModelWrapper) is:", seed)
         if self.params.prediction_type=='regression' and self.params.transformers==True:
-            self.transformers = [trans.NormalizationTransformerHybrid(transform_y=True, dataset=model_dataset.dataset)]
+            self.transformers = [trans.NormalizationTransformerHybrid(transform_y=True, dataset=model_dataset.dataset,random_state=random_state, seed=seed)]
 
 # ****************************************************************************************
 class ForestModelWrapper(ModelWrapper):
@@ -1865,7 +1869,7 @@ class DCRFModelWrapper(ForestModelWrapper):
             featurizer (Featurization): Object managing the featurization of compounds
             ds_client: datastore client.
         """
-        super().__init__(params, featurizer, ds_client, random_state, seed)
+        super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
         self.seed = seed
         self.random_state = random_state
         print("(model_wrapper.py) the seed used to initialize the DCRFModelWrapper is:", self.seed)
@@ -2024,7 +2028,7 @@ class DCxgboostModelWrapper(ForestModelWrapper):
             featurizer (Featurization): Object managing the featurization of compounds
             ds_client: datastore client.
         """
-        super().__init__(params, featurizer, ds_client, random_state, seed)
+        super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
         self.seed = seed
         self.random_state = random_state
         print("(model_wrapper.py) the seed used to initialize the DCxgboostModelWrapper is:", self.seed)
@@ -2531,6 +2535,7 @@ class MultitaskDCModelWrapper(PytorchDeepChemModelWrapper):
 
         reload_dir (str): Directory where saved model is located.
         """
+        print("(model_wrapper.py) the seed used recreate the multitask model (MultitaskDCModelWrapper) is:", seed)
         if model_dir is None:
             model_dir = self.model_dir
 
@@ -2781,7 +2786,8 @@ class GraphConvDCModelWrapper(KerasDeepChemModelWrapper):
             model: The dc.models.GraphConvModel, MultitaskRegressor, or MultitaskClassifier object, as specified by the params attribute
 
         """
-        super().__init__(params, featurizer, ds_client, random_state, seed)
+        super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
+        print("(model_wrapper.py) the seed used to initialize GraphConvDCModel is:", seed)
         # TODO (ksm): The next two attributes aren't used; suggest we drop them.
         self.g = tf.Graph()
         self.sess = tf.compat.v1.Session(graph=self.g)

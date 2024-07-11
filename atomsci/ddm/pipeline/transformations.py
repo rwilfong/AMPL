@@ -325,7 +325,9 @@ class NormalizationTransformerHybrid(NormalizationTransformer):
                  transform_y=False,
                  transform_w=False,
                  dataset=None,
-                 move_mean=True) :
+                 move_mean=True,
+                 random_state=None,
+                 seed=None) :
 
         if transform_X :
             X_means, X_stds = dataset.get_statistics(X_stats=True, y_stats=False)
@@ -354,8 +356,8 @@ class NormalizationTransformerHybrid(NormalizationTransformer):
                 transform_w=transform_w,
                 dataset=dataset)
 
-    def transform(self, dataset, parallel=False):
-        return dataset.transform(self)
+    def transform(self, dataset, parallel=False, random_state=None, seed=None):
+        return dataset.transform(self, seed=seed)
 
     def transform_array(self, X, y, w, ids):
         """Transform the data in a set of (X, y, w) arrays."""
