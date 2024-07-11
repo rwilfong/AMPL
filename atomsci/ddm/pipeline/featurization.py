@@ -1062,14 +1062,14 @@ class PersistentFeaturization(Featurization):
     the features is CPU- or memory-intensive, e.g. descriptors. Currently DescriptorFeaturization is the only subclass,
     but others are planned (e.g., UMAPDescriptorFeaturization).
     """
-    def __init__(self, params):
+    def __init__(self, params, random_state=None, seed=None):
         """Initializes a PersistentFeaturization object. This is a good place to load data used by the featurizer,
         such as a table of descriptors.
 
         Args:
             params (Namespace): Contains parameters to be used to instantiate a featurizer.
         """
-        super().__init__(params)
+        super().__init__(params, random_state, seed)
 
     # ****************************************************************************************
     def extract_prefeaturized_data(self, featurized_dset_df, params, random_state=None, seed=None):
