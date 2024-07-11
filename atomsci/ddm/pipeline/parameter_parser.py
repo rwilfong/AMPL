@@ -1046,12 +1046,8 @@ def get_parser():
     parser.add_argument(
         '--seed', dest='seed', default=None,
         help='Random seed used for initializing the random number generator to ensure results are reproducible.'
-<<<<<<< HEAD
         'Default is None and a random seed will be generated.')
-=======
-        'Default is None and a random seed will be generated.' 
-    )
->>>>>>> 1.6.1_rose_dev
+
 
     # **********************************************************************************************************
     # model_building_parameters: graphconv
@@ -1249,10 +1245,7 @@ def get_parser():
     parser.add_argument(
         '--sampling_k_neighbors', dest='sampling_k_neighbors', type=int, default=5,
         help='The nearest neighbors used to define the neighborhood of samples to use to generate the synthetic samples. Specifically used for SMOTE.')
-<<<<<<< HEAD
-=======
 
->>>>>>> 1.6.1_rose_dev
     parser.add_argument(
         '--mtss_num_super_scaffolds', default=40, type=int,
         help='This specifies the number of genes in a chromosome for the genetic algorithm. Scaffolds bins are often'
