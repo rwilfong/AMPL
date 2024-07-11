@@ -162,7 +162,7 @@ class PerfData(object):
         raise NotImplementedError
 
     # ****************************************************************************************
-    def get_weights(self, ids=None):
+    def get_weights(self, ids=None, random_state=None, seed=None):
         """Returns the dataset response weights as an (ncmpds, ntasks) array
 
         Raises:
@@ -271,7 +271,7 @@ class RegressionPerfData(PerfData):
         print("(perf_data.py) The seed used for model_choice_score (RegressionPerfData) is:", seed)
         ids, pred_vals, stds = self.get_pred_values(random_state=random_state, seed=seed)
         real_vals = self.get_real_values(ids)
-        weights = self.get_weights(ids)
+        weights = self.get_weights(ids, random_state=random_state, seed=seed)
         scores = []
         for i in range(self.num_tasks):
             nzrows = np.where(weights[:,i] != 0)[0]
@@ -319,7 +319,7 @@ class RegressionPerfData(PerfData):
 
         (ids, pred_vals, pred_stds) = self.get_pred_values(random_state=random_state, seed=seed)
         real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
-        weights = self.get_weights(ids)
+        weights = self.get_weights(ids, random_state=random_state, seed=seed)
         mae_scores = []
         rms_scores = []
         response_means = []
@@ -402,7 +402,7 @@ class HybridPerfData(PerfData):
     """
     # ****************************************************************************************
     # class HybridPerfData
-    def __init__(self, model_dataset, subset):
+    def __init__(self, model_dataset, subset, random_state=None, seed=None):
         """Initialize any attributes that are common to all HybridPerfData subclasses.
 
         Side effects:
@@ -418,6 +418,9 @@ class HybridPerfData(PerfData):
         self.perf_metrics = []
         self.model_score = None
         self.weights = None
+        self.random_state = random_state
+        self.seed = seed
+        print("(perf_data.py) the seed used to initialize the HybridPerfData class is:", seed)
 
     # ****************************************************************************************
     def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
@@ -434,7 +437,7 @@ class HybridPerfData(PerfData):
         raise NotImplementedError
 
     # ****************************************************************************************
-    def compute_perf_metrics(self, per_task=False):
+    def compute_perf_metrics(self, per_task=False, random_state=None, seed=None):
         """Raises:
             NotImplementedError: The method is implemented by subclasses
         """
@@ -523,7 +526,7 @@ class HybridPerfData(PerfData):
 
         (ids, pred_vals, pred_stds) = self.get_pred_values(random_state=random_state, seed=seed)
         real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
-        weights = self.get_weights(ids)
+        weights = self.get_weights(ids, random_state=random_state, seed=seed)
         mae_scores = []
         rms_scores = []
         response_means = []
@@ -618,7 +621,7 @@ class ClassificationPerfData(PerfData):
     """
     # ****************************************************************************************
     # class ClassificationPerfData
-    def __init__(self, model_dataset, subset):
+    def __init__(self, model_dataset, subset, random_state=None, seed=None):
         """Initialize any attributes that are common to all ClassificationPerfData subclasses
 
         Side effects:
@@ -644,6 +647,8 @@ class ClassificationPerfData(PerfData):
         self.perf_metrics = []
         self.model_score = None
         self.weights = None
+        self.random_state = random_state
+        self.seed = seed 
 
     # ****************************************************************************************
     def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
@@ -679,7 +684,7 @@ class ClassificationPerfData(PerfData):
 
         """
         print("(perf_data.py) the seed used for model_choice_score (ClassificationPerfData) is:", seed)
-        ids, pred_classes, class_probs, prob_stds = self.get_pred_values()
+        ids, pred_classes, class_probs, prob_stds = self.get_pred_values(random_state=random_state, seed=seed)
         real_vals = self.get_real_values(random_state=random_state, seed=seed)
         weights = self.get_weights()
         scores = []
@@ -740,7 +745,7 @@ class ClassificationPerfData(PerfData):
         (ids, pred_classes, class_probs, prob_stds) = self.get_pred_values(random_state=random_state, seed=seed)
 
         real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
-        weights = self.get_weights(ids)
+        weights = self.get_weights(ids, random_state=random_state, seed=seed)
         if self.num_classes > 2:
             real_val_list = [real_vals[:,i,:] for i in range(self.num_tasks)]
             class_prob_list = [class_probs[:,i,:] for i in range(self.num_tasks)]
@@ -751,7 +756,7 @@ class ClassificationPerfData(PerfData):
             class_prob_list = [class_probs[:,i,1] for i in range(self.num_tasks)]
 
         # Get the mean and SD of ROC AUC scores over folds. If only single fold training was done, the SD will be None.
-        roc_auc_means, roc_auc_stds = self.compute_perf_metrics(per_task=True)
+        roc_auc_means, roc_auc_stds = self.compute_perf_metrics(per_task=True, random_state=random_state, seed=seed)
         pred_results['roc_auc_score'] = float(np.mean(roc_auc_means))
         if roc_auc_stds is not None:
             pred_results['roc_auc_std'] = float(np.sqrt(np.mean(roc_auc_stds ** 2)))
@@ -1082,7 +1087,7 @@ class KFoldRegressionPerfData(RegressionPerfData):
 
     # ****************************************************************************************
     # class KFoldRegressionPerfData
-    def get_weights(self, ids=None):
+    def get_weights(self, ids=None, random_state=None, seed=None):
         """Returns the dataset response weights, as an (ncmpds, ntasks) array
         in the same ID order as get_pred_values() (unless ids is specified).
 
@@ -1349,7 +1354,7 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class KFoldClassificationPerfData
-    def get_weights(self, ids=None):
+    def get_weights(self, ids=None, random_state=None, seed=None):
         """Returns the dataset response weights, as an (ncmpds, ntasks) array
         in the same ID order as get_pred_values() (unless ids is specified).
 
@@ -1507,6 +1512,8 @@ class SimpleRegressionPerfData(RegressionPerfData):
             Reshapes the predicted values and the standard deviations (if they are given)
 
         """
+        print("(perf_data.py) the seed used to accumulate_preds (SimpleRegressionPerfData) is:", seed)
+        print("reshaping preds...")
         self.pred_vals = self._reshape_preds(predicted_vals, random_state=random_state, seed=seed)
         if pred_stds is not None:
             self.pred_stds = self._reshape_preds(pred_stds, random_state=random_state, seed=seed)
@@ -1538,6 +1545,7 @@ class SimpleRegressionPerfData(RegressionPerfData):
 
                 stds (np.array): Contains (ncmpds, ntasks) array of prediction standard deviations
         """
+        print("(perf_data.py) the seed used to get_pred_values (SimpleRegressionPerfData) is:", seed)
         vals = dc.trans.undo_transforms(self.pred_vals, self.transformers)
         stds = None
         if self.pred_stds is not None:
@@ -1564,12 +1572,13 @@ class SimpleRegressionPerfData(RegressionPerfData):
             np.array: Containing the real dataset response values with transformations undone.
 
         """
+        print("(perf_data.py) the seed used to get_real_values (SimpleRegressionPerfData) is:",seed)
         return dc.trans.undo_transforms(self.real_vals, self.transformers)
 
 
     # ****************************************************************************************
     # class SimpleRegressionPerfData
-    def get_weights(self, ids=None):
+    def get_weights(self, ids=None, random_state=None, seed=None):
         """Returns the dataset response weights as an (ncmpds, ntasks) array
 
         Args:
@@ -1752,7 +1761,7 @@ class SimpleClassificationPerfData(ClassificationPerfData):
         if pred_stds is not None:
             self.pred_stds = self._reshape_preds(pred_stds, random_state=random_state, seed=seed)
         real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
-        weights = self.get_weights(ids)
+        weights = self.get_weights(ids, random_state=random_state, seed=seed)
         # Break out different predictions for each task, with zero-weight compounds masked out, and compute per-task metrics
         scores = []
         for i in range(self.num_tasks):
@@ -1822,7 +1831,7 @@ class SimpleClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class SimpleClassificationPerfData
-    def get_weights(self, ids=None):
+    def get_weights(self, ids=None, random_state=None, seed=None):
         """Returns the dataset response weights
 
         Args:
@@ -1837,7 +1846,7 @@ class SimpleClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class SimpleClassificationPerfData
-    def compute_perf_metrics(self, per_task=False):
+    def compute_perf_metrics(self, per_task=False, random_state=None, seed=None):
         """Returns the ROC_AUC metrics for each task based on the accumulated predictions. If
         per_task is False, returns the average ROC AUC over tasks.
 
@@ -2028,7 +2037,7 @@ class SimpleHybridPerfData(HybridPerfData):
 
     # ****************************************************************************************
     # class SimpleHybridPerfData
-    def get_pred_values(self):
+    def get_pred_values(self, random_state=None, seed=None):
         """Returns the predicted values accumulated over training, with any transformations undone.  Returns
         a tuple (ids, values, stds), where ids is the list of compound IDs, values is a (ncmpds, ntasks) array
         of predictions, and stds is always None for this class.
@@ -2067,7 +2076,7 @@ class SimpleHybridPerfData(HybridPerfData):
 
     # ****************************************************************************************
     # class SimpleHybridPerfData
-    def get_weights(self, ids=None):
+    def get_weights(self, ids=None, random_state=None, seed=None):
         """Returns the dataset response weights as an (ncmpds, ntasks) array
 
         Args:

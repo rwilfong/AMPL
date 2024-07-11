@@ -50,12 +50,12 @@ class TemporalSplitter(Splitter):
         verbose (bool): Whether to print verbose diagnostic messages.
     """
 
-    def __init__(self, cutoff_date, date_col, base_splitter, metric=None, verbose=True):
+    def __init__(self, cutoff_date, date_col, base_splitter, metric=None, verbose=True, random_state=None, seed=None):
         """
         Create a temporal splitter.
 
         """
-
+        print("(temporal_splitter.py) the seed used to initialize the TemporalSplitter is:", seed)
         self.cutoff_date = np.datetime64(cutoff_date)
         self.date_col = date_col
         self.metric = metric
@@ -68,7 +68,7 @@ class TemporalSplitter(Splitter):
         elif base_splitter == 'ave_min':
             self.base_splitter = AVEMinSplitter(metric=metric)
 
-    def split(self, dataset, attr_df, frac_train=0.8, frac_valid=0.2, frac_test=0.0, seed=None, log_every_n=None):
+    def split(self, dataset, attr_df, frac_train=0.8, frac_valid=0.2, frac_test=0.0, seed=None, log_every_n=None, random_state=None):
         """
         Split the dataset into training, validation and test sets. Assigns compounds with dates after self.cutoff_date
         to the test set.  Splits the remaining compounds into training and validation sets using self.base_splitter
@@ -96,6 +96,7 @@ class TemporalSplitter(Splitter):
             tuple: Lists of indices for train, valid and test sets.
 
         """
+        print("(temporal_splitter.py) the seed used to split is:", seed)
         if not (self.date_col in attr_df.columns.values):
             raise ValueError("date_col missing from dataset attributes")
         cmpd_dates = attr_df[self.date_col].values
@@ -105,7 +106,7 @@ class TemporalSplitter(Splitter):
         train_valid_frac = frac_train + frac_valid
         tv_dataset = dataset.select(train_valid_ind)
         train_ind, valid_ind, _ = self.base_splitter.split(tv_dataset, frac_train=frac_train/train_valid_frac, 
-                                                           frac_valid=frac_valid/train_valid_frac, frac_test=0.0)
+                                                           frac_valid=frac_valid/train_valid_frac, frac_test=0.0, seed=seed)
         log.debug("Temporal split yields %d/%d/%d train/valid/test compounds" % (len(train_ind), len(valid_ind), len(test_ind)))
         return train_ind, valid_ind, test_ind
 
@@ -119,7 +120,8 @@ class TemporalSplitter(Splitter):
                                frac_test=np.nan,
                                seed=None,
                                log_every_n=None,
-                               attr_df=None):
+                               attr_df=None, 
+                              random_state=None):
         """
         Splits dataset into training, validation and test sets.
         Overrides base deepchem.Splitter method to allow passing attr_df.
@@ -151,12 +153,13 @@ class TemporalSplitter(Splitter):
             tuple: Deepchem.Dataset objects for the training, validation and test subsets.
 
         """
+        print("(temporal_splitter.py) the seed for train_valid_test_split is:", seed)
         if attr_df is None:
             raise ValueError("TemporalSplitter.train_valid_test_split requires attr_df argument")
 
         train_inds, valid_inds, test_inds = self.split(
             dataset, attr_df, frac_train=frac_train,
-            frac_valid=frac_valid, frac_test=frac_test)
+            frac_valid=frac_valid, frac_test=frac_test, seed=seed)
         train_dataset = dataset.select(train_inds, tempfile.mkdtemp())
         if frac_valid != 0:
             valid_dataset = dataset.select(valid_inds, tempfile.mkdtemp())

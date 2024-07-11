@@ -1054,7 +1054,7 @@ class NNModelWrapper(ModelWrapper):
             self.model.fit(train_dset, nb_epoch=1, checkpoint_interval=0)
             train_perf, valid_perf, test_perf = em.update_epoch(ei,
                                 train_dset=train_dset, valid_dset=valid_dset, test_dset=test_dset, random_state=random_state, seed=seed)
-
+            
             self.log.info("Epoch %d: training %s = %.3f, validation %s = %.3f, test %s = %.3f" % (
                           ei, pipeline.metric_type, train_perf, pipeline.metric_type, valid_perf,
                           pipeline.metric_type, test_perf))
@@ -1471,7 +1471,7 @@ class HybridModelWrapper(NNModelWrapper):
                                random_state=random_state,
                                seed=seed)
 
-        em.set_make_pred(lambda x: self.generate_predictions(x)[0], random_state=random_state, seed=seed)
+        em.set_make_pred(lambda x: self.generate_predictions(x,random_state=random_state, seed=seed)[0], random_state=random_state, seed=seed)
         # initialize ei here so we can use it in the closure
         ei = 0
         em.on_new_best_valid(lambda : self.save_model(checkpoint_file, self.model, 

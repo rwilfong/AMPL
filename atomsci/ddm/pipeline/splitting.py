@@ -235,7 +235,7 @@ class Splitting(object):
                 id_col = params.id_col
             self.splitter = TemporalSplitter(cutoff_date=params.cutoff_date,
                     date_col=params.date_col,
-                    base_splitter=params.base_splitter, metric=metric)
+                    base_splitter=params.base_splitter, metric=metric, random_state=random_state, seed=seed)
         else:
             raise Exception("Unknown splitting method %s" % params.splitter)
 

@@ -281,10 +281,10 @@ class ModelPipeline:
         ##### ADDED BY ROSE ##########
         #seed = self.random_gen.get_seed()
         # use random state for reproducibility 
-        random_state = self.random_state
-        seed = self.seed
-        print("(model_pipeline.py) seed used to load featurized data:", self.random_gen.get_seed())
-        print("(model_pipeline.py) testing self.seed:", self.seed)
+        #random_state = self.random_state
+        #seed = self.seed
+        #print("(model_pipeline.py) seed used to load featurized data:", self.random_gen.get_seed())
+        print("(model_pipeline.py) load_featurize_data seed is:", seed)
         
         
         self.data = model_datasets.create_model_dataset(params, self.featurization, self.ds_client, random_state=self.random_state, seed=self.seed) 
@@ -622,13 +622,6 @@ class ModelPipeline:
                 model_metadata (dict): The model metadata dictionary that stores the model metrics and metadata
         """
         ###### SEED ###########
-            
-        #if random_state is not None:
-            #set_seed(random_state)
-        #else:
-            #random_state=self.random_gen.get_random_state()
-        #if seed is None:
-            #seed = self.random_gen.get_seed()
         random_state = self.random_gen.get_random_state()
         seed = self.random_gen.get_seed()
             
