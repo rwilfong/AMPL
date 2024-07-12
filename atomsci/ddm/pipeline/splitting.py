@@ -44,7 +44,6 @@ def create_splitting(params, random_state=None, seed=None):
         Exception: If params.split_strategy not in ['train_valid_test','k_fold_cv']. Unsupported split strategy
         
     """
-    print("(splitting.py) the seed used in create_splitting is:", seed)
     if params.production:
         return ProductionSplitting(params, random_state=random_state, seed=seed)
     elif params.split_strategy == 'train_valid_test':
@@ -196,7 +195,6 @@ class Splitting(object):
                 splitter (Deepchem split object): A splitting object of the subtype specified by split
 
         """
-        print("(splitting.py) the seed used to initialize the splitting class is:", seed)
         self.random_state = random_state
         self.seed = seed
         
@@ -306,7 +304,6 @@ class KFoldSplitting(Splitting):
         self.num_folds = params.num_folds
         self.random_state = random_state
         self.seed = seed
-        print("(splitting.py) The seed used to initialize the KFoldSplitting class is:", seed)
 
     # ****************************************************************************************
 
@@ -364,8 +361,6 @@ class KFoldSplitting(Splitting):
         # SMILES depending on the call to self.needs_smiles(). Later expand_selection
         # will expect SMILES or compound_ids in dataset.ids depending on needs_smiles
         # passed into the constructor
-
-        print("(splitting.py) the seed used for kfold splitting is:", seed)
         
         dm = DatasetManager(dataset=dataset, attr_df=attr_df, smiles_col=smiles_col,
             needs_smiles=self.needs_smiles(), random_state=random_state, seed=seed)
@@ -437,7 +432,6 @@ class TrainValidTestSplitting(Splitting):
         self.num_folds = 1
         self.random_state = random_state
         self.seed = seed
-        print("(splitting.py) The seed used to initialize the TrainValidTestSplitting class is:", seed)
 
     # ****************************************************************************************
     def get_split_prefix(self, parent=''):
@@ -504,8 +498,6 @@ class TrainValidTestSplitting(Splitting):
         # SMILES depending on the call to self.needs_smiles(). Later expand_selection
         # will expect SMILES or compound_ids in dataset.ids depending on needs_smiles
         # passed into the constructor
-
-        print("(splitting.py) the seed being used TrainValidTestSplitting class split_dataset function is:", seed)
         
         dm = DatasetManager(dataset=dataset, attr_df=attr_df, smiles_col=smiles_col,
             needs_smiles=self.needs_smiles(), random_state=random_state, seed=seed)
@@ -588,7 +580,6 @@ class ProductionSplitting(Splitting):
         self.split = 'production'
         self.random_state=random_state
         self.seed = seed 
-        print("(splitting.py) the seed used to initialize the ProductionSplitting  class is:", seed)
 
     # ****************************************************************************************
     def get_split_prefix(self, parent=''):
@@ -645,7 +636,6 @@ class ProductionSplitting(Splitting):
         # SMILES depending on the call to self.needs_smiles(). Later expand_selection
         # will expect SMILES or compound_ids in dataset.ids depending on needs_smiles
         # passed into the constructor
-        print("(splitting.py) The seed being used for ProductionSplitting is:", seed)
         
         dm = DatasetManager(dataset=dataset, attr_df=attr_df, smiles_col=smiles_col,
             needs_smiles=self.needs_smiles(), random_state=random_state, seed=seed)
@@ -704,8 +694,6 @@ class DatasetManager:
 
         self.random_state = random_state
         self.seed = seed
-        print("(splitting.py) The seed being used in the DatasetManger class is:", self.seed)
-
         
         self.dataset_dup = False
 

@@ -191,8 +191,7 @@ def create_model_wrapper(params, featurizer, ds_client=None, random_state=None, 
     Raises:
         ValueError: Only params.model_type = 'NN', 'RF' or 'xgboost' is supported.
     """
-    print("(model_wrapper.py) the seed used in create_model_wrapper is:", seed)
- 
+    
     if params.model_type == 'NN':
         if params.featurizer == 'graphconv':
             return GraphConvDCModelWrapper(params, featurizer, ds_client, random_state=random_state, seed=seed)
@@ -296,10 +295,7 @@ class ModelWrapper(object):
         self.transformers_x = []
         self.transformers_w = []
         self.random_state = random_state
-        self.seed = seed 
-        print("the seed used to initialize the model_wrapper class is:", self.seed)
-        
-        
+        self.seed = seed         
 
         # ****************************************************************************************
 
@@ -349,7 +345,6 @@ class ModelWrapper(object):
                 transformers: A list of deepchem transformation objects on response_col, only if conditions are met
         """
         # TODO: Just a warning, we may have response transformers for classification datasets in the future
-        print("(model_wrapper) the seed used in _create_output_transformers is:", seed)
         if self.params.prediction_type=='regression' and self.params.transformers==True:
             self.transformers = [trans.NormalizationTransformerMissingData(transform_y=True, dataset=model_dataset.dataset, random_state=random_state, seed=seed)]
 
@@ -365,7 +360,6 @@ class ModelWrapper(object):
             Overwrites the attributes:
                 transformers_x: A list of deepchem transformation objects on featurizers, only if conditions are met.
         """
-        print("model_wrapper.py) the seed used in _create_feature_transformers is:", seed)
         # Set up transformers for features, if needed
         self.transformers_x = trans.create_feature_transformers(self.params, model_dataset, random_state=random_state, seed=seed)
 
@@ -391,7 +385,6 @@ class ModelWrapper(object):
         """
         self.random_state=random_state
         self.seed=seed
-        print("the seed being used in create_transformers is:", self.seed)
         
         self._create_output_transformers(model_dataset, random_state=self.random_state, seed=self.seed)
 
@@ -412,7 +405,7 @@ class ModelWrapper(object):
 
         # ****************************************************************************************
 
-    def reload_transformers(self):
+    def reload_transformers(self, random_state=None, seed=None):
         """Load response, feature and weight transformers from datastore objects or files. Before AMPL v1.2 these
         were persisted as separate datastore objects when the model tracker was used; subsequently they
         are included in model tarballs, which should have been unpacked before this function gets called.
@@ -461,7 +454,6 @@ class ModelWrapper(object):
             transformed_dataset: The transformed DeepChem DiskDataset
 
         """
-        print("(model_wrapper.py) the seed used to transform_dataset in ModelWrapper is:", seed)
         transformed_dataset = dataset
         if len(self.transformers) > 0:
             self.log.info("Transforming response data")
@@ -505,7 +497,6 @@ class ModelWrapper(object):
             dict: A dictionary of the prediction results
 
         """
-        print("(model_wrapper.py) the seed used for get_train_valid_pred_results (ModelWrapper) is:", seed)
         # look at get_pred_vals perf_data
         return perf_data.get_prediction_results(random_state=random_state, seed=seed)
 
@@ -552,7 +543,6 @@ class ModelWrapper(object):
         Returns:
             dict: A dictionary containing the prediction values and metrics for the current dataset.
         """
-        print("(model_wrapper.py) the seed used for get_test_perf_data (ModelWrapper) is:", seed)
         perf_data = self.get_test_perf_data(model_dir, model_dataset, random_state=random_state)
         return perf_data.get_prediction_results(random_state=random_state, seed=seed)
 
@@ -574,7 +564,6 @@ class ModelWrapper(object):
         # We pass transformed=False to indicate that the preds and uncertainties we get from
         # generate_predictions are already untransformed, so that perf_data.get_prediction_results()
         # doesn't untransform them again.
-        print("(model_wrapper.py) the seed used in get_full_dataset_perf_data (ModelWrapper) is:", seed)
         if hasattr(self.transformers[0], "ishybrid"):
             # indicate that we are training a hybrid model
             perf_data = perf.create_perf_data("hybrid", model_dataset, self.transformers, 'full', is_ki=self.params.is_ki, ki_convert_ratio=self.params.ki_convert_ratio, transformed=False, random_state=random_state, seed=seed)
@@ -596,7 +585,6 @@ class ModelWrapper(object):
             dict: A dictionary containing predicted values and metrics for the current full dataset
 
         """
-        print("(model_wrapper.py) the seed used for get_full_dataset_pred_results (ModelWrapper) is:", seed)
         self.data = model_dataset
         perf_data = self.get_full_dataset_perf_data(model_dataset, random_state=random_state, seed=seed)
         return perf_data.get_prediction_results(random_state=random_state, seed=seed)
@@ -782,7 +770,6 @@ class NNModelWrapper(ModelWrapper):
 
             ValueError: If subset not in ['train','valid','test','full']
         """
-        print("(model_wrapper.py) the seed used in get_perf_data (NNModelWrapper) is:", seed)
         if subset == 'full':
             return self.get_full_dataset_perf_data(self.data, random_state=random_state, seed=seed)
         if epoch_label == 'best':
@@ -821,7 +808,6 @@ class NNModelWrapper(ModelWrapper):
 
             ValueError: If subset not in ['train','valid','test','full']
         """
-        print("(model_wrapper.py) the seed used for get_pred_results (NNModelWrapper) is:", seed)
         if subset == 'full':
             return self.get_full_dataset_pred_results(self.data, random_state=random_state, seed=seed)
         if epoch_label == 'best':
@@ -874,7 +860,6 @@ class NNModelWrapper(ModelWrapper):
                     contains a list of dictionaries of predicted values and metrics on the validation dataset
         """
         # TODO: Fix docstrings above
-        print("(model_wrapper.py) the seed used in class NNModelWrapper train is:", seed)
         num_folds = len(pipeline.data.train_valid_dsets)
         if num_folds > 1:
             self.train_kfold_cv(pipeline, random_state=random_state, seed=seed)
@@ -908,12 +893,8 @@ class NNModelWrapper(ModelWrapper):
                 valid_epoch_perfs (np.array): Contains a standard validation set performance metric (r2_score or roc_auc), averaged over folds,
                     at the end of each epoch.
         """
-        # return seed used 
-        print("(model_wrapper.py) the seed used in NNModelWrapper train_kfold_cv is:", seed) 
-        
         # TODO: Fix docstrings above
         num_folds = len(pipeline.data.train_valid_dsets)
-        print(f"Training k-fold cv. There are {num_folds} folds")
         
         self.data = pipeline.data
         # Create PerfData structures for computing cross-validation metrics
@@ -933,7 +914,7 @@ class NNModelWrapper(ModelWrapper):
         # Train a separate model for each fold
         models = []
         for k in range(num_folds):
-            models.append(self.recreate_model(random_state=random_state, seed=seed))
+            models.append(self.recreate_model(random_state=random_state, seed=seed)) #random_state=random_state
 
         for ei in LCTimerKFoldIterator(self.params, pipeline, self.log):
             # Create PerfData structures that are only used within loop to compute metrics during initial training
@@ -957,7 +938,6 @@ class NNModelWrapper(ModelWrapper):
 
                 # We turn off automatic checkpointing - we only want to save a checkpoints for the final model.
                 self.model.fit(train_dset, nb_epoch=1, checkpoint_interval=0, restore=False)
-                print("(model_wrapper.py) the seed used to fit the model is:", seed)
                 train_pred = self.model.predict(train_dset, [])
 
                 test_pred = self.model.predict(test_dset, [])
@@ -1032,10 +1012,8 @@ class NNModelWrapper(ModelWrapper):
 
                 valid_epoch_perfs (np.array): A standard validation set performance metric (r2_score or roc_auc), at the end of each epoch.
         """
-        print("(model_wrapper.py) The seed used in NNModelWrapper train_with_early_stopping is:", seed) 
         
         self.data = pipeline.data
-        print("(model_wrapper.py) initializing the EpochManager with seed:", seed)
         em = perf.EpochManager(self,
                                 prediction_type=self.params.prediction_type, 
                                 model_dataset=pipeline.data, 
@@ -1107,7 +1085,6 @@ class NNModelWrapper(ModelWrapper):
             Each element of tuple is a numpy array of shape (ncmpds, ntasks, nclasses), where nclasses = 1 for regression
             models.
         """
-        print("(model_wrapper.py) the seed used to generate predictions is:", seed)
         
         pred, std = None, None
         self.log.info("Predicting values for current model")
@@ -1243,7 +1220,6 @@ class HybridModelWrapper(NNModelWrapper):
 
         self.random_state = random_state
         self.seed = seed
-        print("(model_wrapper.py) the seed used to initialize the HybridWrapper is:", seed) 
         
         if self.params.layer_sizes is None:
             if self.params.featurizer == 'ecfp':
@@ -1447,7 +1423,6 @@ class HybridModelWrapper(NNModelWrapper):
         torch.save(checkpoint, checkpoint_file)
 
     def train(self, pipeline, random_state=None, seed=None):
-        print('(model_wrapper.py) the seed used to train a hybrid model is:', seed)
         if self.params.loss_func.lower() == "poisson":
             self.loss_func = self._poisson_hybrid_loss
         else:
@@ -1549,7 +1524,7 @@ class HybridModelWrapper(NNModelWrapper):
             raise Exception(f"Checkpoint file doesn't exist in the reload_dir {reload_dir}")
         
         # Restore the transformers from the datastore or filesystem
-        self.reload_transformers()
+        self.reload_transformers(random_state=random_state, seed=seed)
 
     # ****************************************************************************************
     def generate_predictions(self, dataset, random_state=None, seed=None):
@@ -1637,7 +1612,6 @@ class HybridModelWrapper(NNModelWrapper):
                 transformers: A list of deepchem transformation objects on response_col, only if conditions are met
         """
         # TODO: Just a warning, we may have response transformers for classification datasets in the future
-        print("(model_wrapper.py) the seed used for _create_output_transformers (HybridModelWrapper) is:", seed)
         if self.params.prediction_type=='regression' and self.params.transformers==True:
             self.transformers = [trans.NormalizationTransformerHybrid(transform_y=True, dataset=model_dataset.dataset,random_state=random_state, seed=seed)]
 
@@ -1663,7 +1637,6 @@ class ForestModelWrapper(ModelWrapper):
 
         self.random_state = random_state
         self.seed = seed
-        print("(model_wrapper.py) the seed used to initialize the ForestModelWrapper class is:", self.seed)
         
         self.model = self.make_dc_model(self.best_model_dir, random_state=self.random_state, seed=self.seed)
 
@@ -1691,7 +1664,6 @@ class ForestModelWrapper(ModelWrapper):
 
             valid_perfs (dict): A dictionary of predicted values and metrics on the training dataset
         """
-        print("(model_wrapper.py) the seed used to train in the ForestModelWrapper is:", seed)
         
         self.data = pipeline.data
         self.best_epoch = None
@@ -1764,7 +1736,7 @@ class ForestModelWrapper(ModelWrapper):
 
         """
         # Restore the transformers from the datastore or filesystem
-        self.reload_transformers()
+        self.reload_transformers(random_state=random_state, seed=seed)
         self.model = self.make_dc_model(reload_dir, random_state=random_state, seed=seed)
         self.model.reload()
 
@@ -1872,7 +1844,6 @@ class DCRFModelWrapper(ForestModelWrapper):
         super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
         self.seed = seed
         self.random_state = random_state
-        print("(model_wrapper.py) the seed used to initialize the DCRFModelWrapper is:", self.seed)
 
     # ****************************************************************************************
     def make_dc_model(self, model_dir, random_state=None, seed=None):
@@ -1886,7 +1857,6 @@ class DCRFModelWrapper(ForestModelWrapper):
         returns:
             A DeepChem model
         """
-        print("(model_wrapper.py) the seed used to create a model in DCRFModelWrapper is:", seed)
         if self.params.prediction_type == 'regression':
             rf_model = RandomForestRegressor(n_estimators=self.params.rf_estimators,
                                              max_features=self.params.rf_max_features,
@@ -1925,7 +1895,6 @@ class DCRFModelWrapper(ForestModelWrapper):
 
             valid_perfs (dict): A dictionary of predicted values and metrics on the training dataset
         """
-        print("(model_wrapper.py) the seed used to initialize the DCRFModelWrapper train function is:", seed)
         self.log.info("Fitting random forest model")
         super().train(pipeline, random_state=random_state, seed=seed)
 
@@ -1940,7 +1909,6 @@ class DCRFModelWrapper(ForestModelWrapper):
             (pred, std): numpy arrays containing predictions for compounds and the standard error estimates.
 
         """
-        print("(model_wrapper.py) the DCRFModelWrapper generate_predictions seed is:", seed) 
         pred, std = None, None
         self.log.info("Evaluating current model")
 
@@ -2031,7 +1999,6 @@ class DCxgboostModelWrapper(ForestModelWrapper):
         super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
         self.seed = seed
         self.random_state = random_state
-        print("(model_wrapper.py) the seed used to initialize the DCxgboostModelWrapper is:", self.seed)
 
     # ****************************************************************************************
     def make_dc_model(self, model_dir, random_state=None, seed=None):
@@ -2045,7 +2012,6 @@ class DCxgboostModelWrapper(ForestModelWrapper):
         returns:
             A DeepChem model
         """
-        print("(model_wrapper.py) the seed used to create an XGBoost model in DCxgboost is:", seed)
         if self.params.prediction_type == 'regression':
             xgb_model = xgb.XGBRegressor(max_depth=self.params.xgb_max_depth,
                                          learning_rate=self.params.xgb_learning_rate,
@@ -2122,7 +2088,6 @@ class DCxgboostModelWrapper(ForestModelWrapper):
 
             valid_perfs (dict): A dictionary of predicted values and metrics on the training dataset
         """
-        print("(model_wrapper.py) the seed being used in training an xgboost model is:", seed)
         self.log.info("Fitting xgboost model")
 
         self.data = pipeline.data
@@ -2181,7 +2146,6 @@ class DCxgboostModelWrapper(ForestModelWrapper):
             Resets the value of model, transformers, transformers_x and transformers_w
 
         """
-        print("(model_wrapper.py) the seed passed into reload_model is:", seed)
         if self.params.prediction_type == 'regression':
             xgb_model = xgb.XGBRegressor(max_depth=self.params.xgb_max_depth,
                                          learning_rate=self.params.xgb_learning_rate,
@@ -2234,7 +2198,7 @@ class DCxgboostModelWrapper(ForestModelWrapper):
                                          )
 
         # Restore the transformers from the datastore or filesystem
-        self.reload_transformers()
+        self.reload_transformers(random_state=random_state, seed=seed)
 
         self.model = dc.models.GBDTModel(xgb_model, model_dir=self.best_model_dir, random_state=random_state)
         self.model.reload()
@@ -2388,13 +2352,10 @@ class PytorchDeepChemModelWrapper(NNModelWrapper):
         # use NNModelWrapper init. 
         super().__init__(params, featurizer, ds_client, random_state, seed)
         self.num_epochs_trained = 0
-
-        self.model = self.recreate_model(random_state=self.random_state, seed=self.seed)
-        
         self.seed=seed
         self.random_state=random_state
-        print("(model_wrapper.py) the seed used to initialize the PytorchDeepChemModelWrapper is (self.seed):", self.seed)
-
+        self.model = self.recreate_model(random_state=self.random_state, seed=self.seed)
+        
     # ****************************************************************************************
     def recreate_model(self, random_state=None, seed=None, **kwargs):
         """Creates a new DeepChem Model object of the correct type for the requested featurizer and prediction type
@@ -2404,11 +2365,9 @@ class PytorchDeepChemModelWrapper(NNModelWrapper):
             kwargs: These arguments are used to overwrite parameters set in self.params and
                 are passed to the underlying deepchem model object. e.g. model_dir is set in self.reload_model
         """
-        print("(model_wrapper.py) The seed used in the recreate_model function of the PytorchDeepchemModel is:", seed)
         
         # extract parameters specific to this model
         extracted_features = pp.extract_model_params(self.params)
-        print("(model_wrapper.py) the extracted_features are:", extracted_features)
 
         # model_dir is set and handled by AMPL.
         extracted_features.update({'model_dir': self.model_dir})
@@ -2417,16 +2376,15 @@ class PytorchDeepChemModelWrapper(NNModelWrapper):
         extracted_features.update(kwargs)
 
         chosen_model = pp.model_wl[self.params.model_type]
-        print("(model_wrapper.py) the chosen model is:", chosen_model)
         
         self.log.info(f'Args passed to {chosen_model}:{str(extracted_features)}')
 
         # build the model and pass the seed through
         model = chosen_model(
-                **extracted_features,
-                seed=seed
+                random_state=seed,
+                seed=seed,
+                **extracted_features
             ) 
-        print("(model_wrapper.py) the chosen model is:", model)
         return model
 
     # ****************************************************************************************
@@ -2446,7 +2404,7 @@ class PytorchDeepChemModelWrapper(NNModelWrapper):
         self.restore(best_chkpt, reload_dir)
 
         # Restore the transformers from the datastore or filesystem
-        self.reload_transformers()
+        self.reload_transformers(random_state=random_state, seed=seed)
 
     # ****************************************************************************************
     def get_model_specific_metadata(self):
@@ -2535,7 +2493,6 @@ class MultitaskDCModelWrapper(PytorchDeepChemModelWrapper):
 
         reload_dir (str): Directory where saved model is located.
         """
-        print("(model_wrapper.py) the seed used recreate the multitask model (MultitaskDCModelWrapper) is:", seed)
         if model_dir is None:
             model_dir = self.model_dir
 
@@ -2692,7 +2649,7 @@ class KerasDeepChemModelWrapper(PytorchDeepChemModelWrapper):
         self.restore(checkpoint=checkpoint)
 
         # Restore the transformers from the datastore or filesystem
-        self.reload_transformers()
+        self.reload_transformers(random_state=random_state, seed=seed)
 
     def restore(self, checkpoint=None, model_dir=None, session=None):
         """Restores this model"""
@@ -2787,7 +2744,6 @@ class GraphConvDCModelWrapper(KerasDeepChemModelWrapper):
 
         """
         super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
-        print("(model_wrapper.py) the seed used to initialize GraphConvDCModel is:", seed)
         # TODO (ksm): The next two attributes aren't used; suggest we drop them.
         self.g = tf.Graph()
         self.sess = tf.compat.v1.Session(graph=self.g)

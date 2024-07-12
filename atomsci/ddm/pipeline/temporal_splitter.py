@@ -55,7 +55,6 @@ class TemporalSplitter(Splitter):
         Create a temporal splitter.
 
         """
-        print("(temporal_splitter.py) the seed used to initialize the TemporalSplitter is:", seed)
         self.cutoff_date = np.datetime64(cutoff_date)
         self.date_col = date_col
         self.metric = metric
@@ -96,7 +95,6 @@ class TemporalSplitter(Splitter):
             tuple: Lists of indices for train, valid and test sets.
 
         """
-        print("(temporal_splitter.py) the seed used to split is:", seed)
         if not (self.date_col in attr_df.columns.values):
             raise ValueError("date_col missing from dataset attributes")
         cmpd_dates = attr_df[self.date_col].values
@@ -153,7 +151,6 @@ class TemporalSplitter(Splitter):
             tuple: Deepchem.Dataset objects for the training, validation and test subsets.
 
         """
-        print("(temporal_splitter.py) the seed for train_valid_test_split is:", seed)
         if attr_df is None:
             raise ValueError("TemporalSplitter.train_valid_test_split requires attr_df argument")
 

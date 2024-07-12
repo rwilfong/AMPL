@@ -298,7 +298,6 @@ class ModelDataset(object):
 
         self.random_state = random_state
         self.seed = seed
-        print("(model_datasets.py) the seed used to initialize the modelDataset class is:", seed)
         
         # Create object to delegate featurization to
         if featurization is None:
@@ -365,9 +364,6 @@ class ModelDataset(object):
         
         if params is None:
             params = self.params
-        
-        print("the seed used to get the featurized data is:", seed)
-        #random_state = self.random_state
         
         
         if params.previously_featurized:
@@ -464,7 +460,6 @@ class ModelDataset(object):
         """
 
         # Create object to delegate splitting to.
-        print("(model_datasets.py) The seed used to split the dataset for the ModelDataset class is:", seed)
         if self.splitting is None:
             self.splitting = split.create_splitting(self.params, random_state=random_state, seed=seed)
         self.train_valid_dsets, self.test_dset, self.train_valid_attr, self.test_attr = \
@@ -782,7 +777,6 @@ class MinimalDataset(ModelDataset):
         self.contains_responses = contains_responses
         self.random_state = random_state
         self.seed = seed
-        print("(model_datasets.py) the seed used for the MinimalDataset class is:", self.seed)
 
     # ****************************************************************************************
     def get_dataset_tasks(self, dset_df):
@@ -937,7 +931,6 @@ class DatastoreDataset(ModelDataset):
         
         self.random_state = random_state
         self.seed = seed 
-        print("(model_datasets.py) the seed used for ModelDatasets is:", seed)
 
     # ****************************************************************************************
     def load_full_dataset(self):
@@ -1227,7 +1220,6 @@ class FileDataset(ModelDataset):
 
         self.random_state = random_state
         self.seed = seed
-        print("(model_datasets.py) the seed intialized in FileDataset is:", seed)
 
     # ****************************************************************************************
     def load_full_dataset(self):

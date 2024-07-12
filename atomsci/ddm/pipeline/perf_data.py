@@ -105,7 +105,6 @@ def create_perf_data(prediction_type, model_dataset, transformers, subset, rando
         ValueError: if split_strategy not in ['train_valid_test','k_fold_cv']
         ValueError: prediction_type not in ['regression','classification']
     """
-    print("the seed passed into create_perf_data is:", seed)
     if subset == 'full':
         split_strategy = 'train_valid_test'
     else:
@@ -226,7 +225,6 @@ class RegressionPerfData(PerfData):
         self.weights = None
         self.random_state=random_state
         self.seed=seed
-        print("(perf_data.py) The seed associated with initializing the RegressionPerfData class is:", self.seed)
 
     # ****************************************************************************************
     def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
@@ -268,7 +266,6 @@ class RegressionPerfData(PerfData):
                            over tasks.
 
         """
-        print("(perf_data.py) The seed used for model_choice_score (RegressionPerfData) is:", seed)
         ids, pred_vals, stds = self.get_pred_values(random_state=random_state, seed=seed)
         real_vals = self.get_real_values(ids)
         weights = self.get_weights(ids, random_state=random_state, seed=seed)
@@ -299,7 +296,6 @@ class RegressionPerfData(PerfData):
             pred_results (dict): dictionary of performance metrics for a regression model.
 
         """
-        print("(perf_data.py) the seed used for get_prediction_results (RegressionPerfData) is:", seed)
         pred_results = {}
 
         # Get the mean and SD of R^2 scores over folds. If only single fold training was done, the SD will be None.
@@ -420,7 +416,6 @@ class HybridPerfData(PerfData):
         self.weights = None
         self.random_state = random_state
         self.seed = seed
-        print("(perf_data.py) the seed used to initialize the HybridPerfData class is:", seed)
 
     # ****************************************************************************************
     def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
@@ -458,7 +453,6 @@ class HybridPerfData(PerfData):
                            over tasks.
 
         """
-        print("(perf_data.py) the seed used for model_choice_score (HybridPerfData) is:", seed)
         ids, pred_vals, stds = self.get_pred_values(random_state=random_state, seed=seed)
         real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
         weights = self.get_weights(ids)
@@ -683,7 +677,6 @@ class ClassificationPerfData(PerfData):
                            over tasks.
 
         """
-        print("(perf_data.py) the seed used for model_choice_score (ClassificationPerfData) is:", seed)
         ids, pred_classes, class_probs, prob_stds = self.get_pred_values(random_state=random_state, seed=seed)
         real_vals = self.get_real_values(random_state=random_state, seed=seed)
         weights = self.get_weights()
@@ -970,7 +963,6 @@ class KFoldRegressionPerfData(RegressionPerfData):
             
         self.random_state = random_state
         self.seed = seed
-        print("(perf_data.py) The seed used to initialize the KFoldRegressionPerfData class is:", self.seed)
 
     # ****************************************************************************************
     # class KFoldRegressionPerfData
@@ -1124,7 +1116,6 @@ class KFoldRegressionPerfData(RegressionPerfData):
                 r2_std:  A numpy array of standard deviations over folds of R^2 values, if per_task is True.
                          Otherwise, a float giving the overall standard deviation.
         """
-        print("(perf_data.py) the seed used for compute_perf_metrics (KFoldRegressionPerfData) is:", seed)
         r2_scores = np.stack(self.perf_metrics)
         if per_task:
             r2_mean = np.mean(r2_scores, axis=0)
@@ -1206,7 +1197,6 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
         self.random_state = random_state
         self.seed = seeed
-        print("(perf_data.py) the seed used to initialize the KFoldClassificationPerfData class is:", self.seed)
         
         # All currently used classifiers generate class probabilities in their predict methods;
         # if in the future we implement a classification algorithm such as kNN that doesn't support
@@ -1219,7 +1209,6 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         self.num_cmpds = dataset.y.shape[0]
         self.num_tasks = dataset.y.shape[1]
         self.num_classes = len(set(model_dataset.dataset.y.flatten()))
-        print("IDS in dataset.ids:", dataset.ids)
         self.pred_vals = dict([(id, np.empty((0, self.num_tasks, self.num_classes), dtype=np.float32)) for id in dataset.ids])
 
         real_vals, self.weights = model_dataset.get_subset_responses_and_weights(self.subset, [])
@@ -1492,7 +1481,6 @@ class SimpleRegressionPerfData(RegressionPerfData):
 
         self.random_state = random_state
         self.seed = seed
-        print("(perf_data.py) the seed used for initializing the SimpleRegressionPerfData class is:", self.seed)
 
 
     # ****************************************************************************************
@@ -1512,14 +1500,12 @@ class SimpleRegressionPerfData(RegressionPerfData):
             Reshapes the predicted values and the standard deviations (if they are given)
 
         """
-        print("(perf_data.py) the seed used to accumulate_preds (SimpleRegressionPerfData) is:", seed)
-        print("reshaping preds...")
         self.pred_vals = self._reshape_preds(predicted_vals, random_state=random_state, seed=seed)
         if pred_stds is not None:
             self.pred_stds = self._reshape_preds(pred_stds, random_state=random_state, seed=seed)
         pred_vals = dc.trans.undo_transforms(self.pred_vals, self.transformers)
         real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
-        weights = self.get_weights(ids)
+        weights = self.get_weights(ids, random_state=random_state, seed=seed)
         scores = []
         for i in range(self.num_tasks):
             nzrows = np.where(weights[:,i] != 0)[0]
@@ -1545,7 +1531,6 @@ class SimpleRegressionPerfData(RegressionPerfData):
 
                 stds (np.array): Contains (ncmpds, ntasks) array of prediction standard deviations
         """
-        print("(perf_data.py) the seed used to get_pred_values (SimpleRegressionPerfData) is:", seed)
         vals = dc.trans.undo_transforms(self.pred_vals, self.transformers)
         stds = None
         if self.pred_stds is not None:
@@ -1572,7 +1557,6 @@ class SimpleRegressionPerfData(RegressionPerfData):
             np.array: Containing the real dataset response values with transformations undone.
 
         """
-        print("(perf_data.py) the seed used to get_real_values (SimpleRegressionPerfData) is:",seed)
         return dc.trans.undo_transforms(self.real_vals, self.transformers)
 
 
@@ -1606,7 +1590,6 @@ class SimpleRegressionPerfData(RegressionPerfData):
 
                 std: Always None for this class.
         """
-        print("(perf_data.py) the seed used for compute_perf_metrics (SimpleRegressionPerfData) is:", seed)
         r2_scores = self.perf_metrics[0]
         if per_task or self.num_tasks == 1:
             return (r2_scores, None)
@@ -1721,7 +1704,6 @@ class SimpleClassificationPerfData(ClassificationPerfData):
 
         self.random_state = random_state
         self.seed = seed
-        print("(perf_data.py) the seed used to initialize the SimpleClassificationPerfData class is:", self.seed)
 
         # TODO: Everything down to here is same as in SimpleRegressionPerfData.__init__.
         # TODO: Consider defining a SimplePerfData class with the common stuff in its __init__
@@ -1961,7 +1943,6 @@ class SimpleHybridPerfData(HybridPerfData):
             self.transformers = []
         self.random_state = random_state
         self.seed = seed
-        print("(perf_data.py) the seed used to initialize the SimpleHybridPerfData class is:", self.seed) 
 
     # ****************************************************************************************
     # class SimpleHybridPerfData
@@ -2104,7 +2085,6 @@ class SimpleHybridPerfData(HybridPerfData):
 
                 std: Always None for this class.
         """
-        print("(perf_data.py) the seed used for compute_perf_metrics (SimpleHybridPerfData) is:", seed)
         r2_scores = self.perf_metrics[0]
         if per_task or self.num_tasks == 1:
             return (r2_scores, None)
@@ -2185,8 +2165,7 @@ class EpochManager:
 
         self.random_state = random_state
         self.seed = seed
-        print("(perf_data.py) the seed used to initialize EpochManager is:", self.seed)
-
+        
         self.wrapper.best_epoch = 0
         self.wrapper.best_valid_score = None
         self.wrapper.train_epoch_perfs = np.zeros(params.max_epochs)
@@ -2249,7 +2228,6 @@ class EpochManager:
            This function updates self._should_stop
 
         """
-        print("(perf_data.py) the seed in update_epoch (EpochManager) is:", seed)
         train_perf = self.update(ei, 'train', train_dset, random_state=random_state, seed=seed)
         valid_perf = self.update(ei, 'valid', valid_dset, random_state=random_state, seed=seed)
         test_perf = self.update(ei, 'test', test_dset, random_state=random_state, seed=seed)
@@ -2274,7 +2252,6 @@ class EpochManager:
         Returns:
            float: Performance metric for the given dset.
         """
-        print("(perf_data.py) the seed in accumulate (EpochManager) is:", seed)
         pred = self._make_pred(dset)
         perf = getattr(self.wrapper, f'{subset}_perf_data')[ei].accumulate_preds(pred, dset.ids, random_state=random_state, seed=seed)
         return perf
@@ -2296,7 +2273,6 @@ class EpochManager:
            None
 
         """
-        print("(perf_data.py) the seed being used to compute (EpochManager) is:", seed)
         getattr(self.wrapper, f'{subset}_epoch_perfs')[ei], _ = \
             getattr(self.wrapper, f'{subset}_perf_data')[ei].compute_perf_metrics(random_state=random_state, seed=seed)
     # ****************************************************************************************
@@ -2316,7 +2292,6 @@ class EpochManager:
         Side effects:
            Updates self._should_stop when it's time to exit the training loop.
         """
-        print("(perf_data.py) the seed used in update_valid (EpochManager) is:", seed)
         valid_score = self.wrapper.valid_perf_data[ei].model_choice_score(self._model_choice_score_type, random_state=random_state, seed=seed)
         self.wrapper.model_choice_scores[ei] = valid_score
         if self.wrapper.best_valid_score is None or self.production:
@@ -2352,7 +2327,6 @@ class EpochManager:
            perf (float): the performance of the given dset.
 
         """
-        print("(perf_data.py) the seed used in update (EpochManager) is:", seed)
         if dset is None:
             return None
 
@@ -2383,7 +2357,6 @@ class EpochManager:
         Side effects:
            Saves the functional as self._make_pred
         """
-        print("(perf_data.py) the seed used to set_make_pred is:", seed)
         self._make_pred = functional
 
     # ****************************************************************************************
@@ -2405,7 +2378,6 @@ class EpochManager:
            Saves the _new_best_valid_score function.
 
         """
-        print("(perf_data.py) the seed in on_new_best_valid is:", seed)
         self._new_best_valid_score = functional
 # ****************************************************************************************
 class EpochManagerKFold(EpochManager):
