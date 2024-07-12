@@ -5,6 +5,7 @@ import numpy as np
 import uuid 
 import random
 import torch
+import tensorflow as tf
 # =====================================================================================================
 class RandomStateGenerator:
     """
@@ -32,6 +33,8 @@ class RandomStateGenerator:
         
         # Set seed for numpy
         np.random.default_rng(_seed)
+        # needed for deepchem I think 
+        np.random.seed(_seed)
         
         # Set seed for random
         random.seed(_seed)
@@ -42,6 +45,9 @@ class RandomStateGenerator:
             torch.cuda.manual_seed_all(_seed)
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
+
+        # set seed for tensorflow 
+        tf.random.set_seed(_seed)
         
         self.random_state = _random_state
 

@@ -1,0 +1,120 @@
+[
+    {
+        "input_dataset": {
+            "bucket": "public",
+            "dataset_hash": "6f6eb79133f130c30420f403c8080a60",
+            "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/test_datasets/aurka_chembl_base_smiles_union.csv",
+            "dataset_metadata": {},
+            "dataset_oid": null,
+            "datastore": false,
+            "external_export_parameters": {
+                "result_dir": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/rose_dev/seed_test/"
+            },
+            "feature_transform_type": "normalization",
+            "id_col": "compound_id",
+            "production": false,
+            "response_cols": [
+                "pIC50"
+            ],
+            "response_transform_type": "normalization",
+            "smiles_col": "base_rdkit_smiles",
+            "weight_transform_type": null
+        },
+        "label": "best",
+        "metrics_type": "training",
+        "model_uuid": "35515f9b-03ab-4f59-b5e4-e929cfb4b4c9",
+        "prediction_results": {
+            "mae_score": 0.2084786874849711,
+            "mean_response_vals": [
+                6.766079160651761
+            ],
+            "num_compounds": 2049,
+            "r2_score": 0.9641565109534209,
+            "rms_score": 0.2826953729422606,
+            "std_response_vals": [
+                1.4931848032420079
+            ]
+        },
+        "subset": "train",
+        "time_run": 1719585700.656366
+    },
+    {
+        "input_dataset": {
+            "bucket": "public",
+            "dataset_hash": "6f6eb79133f130c30420f403c8080a60",
+            "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/test_datasets/aurka_chembl_base_smiles_union.csv",
+            "dataset_metadata": {},
+            "dataset_oid": null,
+            "datastore": false,
+            "external_export_parameters": {
+                "result_dir": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/rose_dev/seed_test/"
+            },
+            "feature_transform_type": "normalization",
+            "id_col": "compound_id",
+            "production": false,
+            "response_cols": [
+                "pIC50"
+            ],
+            "response_transform_type": "normalization",
+            "smiles_col": "base_rdkit_smiles",
+            "weight_transform_type": null
+        },
+        "label": "best",
+        "metrics_type": "training",
+        "model_uuid": "35515f9b-03ab-4f59-b5e4-e929cfb4b4c9",
+        "prediction_results": {
+            "mae_score": 0.601857146826484,
+            "mean_response_vals": [
+                6.911018623090936
+            ],
+            "model_choice_score": 0.7130538907920521,
+            "num_compounds": 439,
+            "r2_score": 0.7130538907920521,
+            "rms_score": 0.8079198120395291,
+            "std_response_vals": [
+                1.5082317813162907
+            ]
+        },
+        "subset": "valid",
+        "time_run": 1719585700.656368
+    },
+    {
+        "input_dataset": {
+            "bucket": "public",
+            "dataset_hash": "6f6eb79133f130c30420f403c8080a60",
+            "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/test_datasets/aurka_chembl_base_smiles_union.csv",
+            "dataset_metadata": {},
+            "dataset_oid": null,
+            "datastore": false,
+            "external_export_parameters": {
+                "result_dir": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/test/rose_dev/seed_test/"
+            },
+            "feature_transform_type": "normalization",
+            "id_col": "compound_id",
+            "production": false,
+            "response_cols": [
+                "pIC50"
+            ],
+            "response_transform_type": "normalization",
+            "smiles_col": "base_rdkit_smiles",
+            "weight_transform_type": null
+        },
+        "label": "best",
+        "metrics_type": "training",
+        "model_uuid": "35515f9b-03ab-4f59-b5e4-e929cfb4b4c9",
+        "prediction_results": {
+            "mae_score": 0.5998333897544912,
+            "mean_response_vals": [
+                6.740256426038216
+            ],
+            "num_compounds": 440,
+            "r2_score": 0.7275832908531046,
+            "rms_score": 0.8024093639679174,
+            "std_response_vals": [
+                1.5373725310097968
+            ]
+        },
+        "subset": "test",
+        "time_run": 1719585700.656369
+    }
+]

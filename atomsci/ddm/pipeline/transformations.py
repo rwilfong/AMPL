@@ -80,14 +80,13 @@ def create_feature_transformers(params, model_dataset, random_state=None, seed=N
     Returns:
         (list of DeepChem transformer objects): list of transformers for the feature matrix
     """
-    print("(transformations.py) the seed being used in create_feature_transformers is:", seed)
     if params.feature_transform_type == 'umap':
         # Map feature vectors using UMAP for dimension reduction
         if model_dataset.split_strategy == 'k_fold_cv':
             log.warning("Warning: UMAP transformation may produce misleading results when used with K-fold split strategy.")
         train_dset = model_dataset.train_valid_dsets[0][0]
         transformers_x = [UMAPTransformer(params, train_dset, random_state=random_state, seed=seed)]
-        print("UMAP and Imputer are deterministic, probably do not need to pass in a random state")
+        
     elif params.transformers==True:
         # TODO: Transformers on responses and features should be controlled only by parameters
         # response_transform_type and feature_transform_type, rather than params.transformers.
@@ -112,7 +111,6 @@ def create_weight_transformers(params, model_dataset, random_state=None, seed=No
     Returns:
         (list of DeepChem transformer objects): list of transformers for the weight matrix
     """
-    print("(transformations.py) the seed used in create_weight_transformers is:", seed)
     if params.weight_transform_type == 'balancing':
         if params.prediction_type == 'classification':
             transformers_w = [BalancingTransformer(model_dataset.dataset, seed=seed)]
@@ -171,7 +169,6 @@ class UMAPTransformer(Transformer):
 
         self.random_state = random_state
         self.seed = seed 
-        print("(transformations.py) the seed used in UMAPTransformer class is:", self.seed)
 
         if params.prediction_type == 'classification':
             target_metric = 'categorical'
@@ -194,7 +191,6 @@ class UMAPTransformer(Transformer):
 
     # ****************************************************************************************
     def transform(self, dataset, parallel=False, random_state=None, seed=None):
-        print("(transformations.py) the seed used in transform in UMAPTransform is:", seed)
         return super(UMAPTransformer, self).transform(dataset, parallel=parallel, random_state=random_state, seed=seed)
 
     # ****************************************************************************************
@@ -225,7 +221,6 @@ class NormalizationTransformerMissingData(NormalizationTransformer):
         
         self.random_state = random_state
         self.seed = seed
-        print("(transformations.py) the seed used to initialize NormalizationTransformerMissingData is:", self.seed)
         
         if transform_X :
             X_means, X_stds = dataset.get_statistics(X_stats=True, y_stats=False)
