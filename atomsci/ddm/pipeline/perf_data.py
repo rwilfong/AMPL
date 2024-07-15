@@ -266,9 +266,9 @@ class RegressionPerfData(PerfData):
                            over tasks.
 
         """
-        ids, pred_vals, stds = self.get_pred_values(random_state=random_state, seed=seed)
+        ids, pred_vals, stds = self.get_pred_values(random_state=self.random_state, seed=self.seed)
         real_vals = self.get_real_values(ids)
-        weights = self.get_weights(ids, random_state=random_state, seed=seed)
+        weights = self.get_weights(ids, random_state=self.random_state, seed=self.seed)
         scores = []
         for i in range(self.num_tasks):
             nzrows = np.where(weights[:,i] != 0)[0]
@@ -299,7 +299,7 @@ class RegressionPerfData(PerfData):
         pred_results = {}
 
         # Get the mean and SD of R^2 scores over folds. If only single fold training was done, the SD will be None.
-        r2_means, r2_stds = self.compute_perf_metrics(per_task=True, random_state=random_state, seed=seed)
+        r2_means, r2_stds = self.compute_perf_metrics(per_task=True, random_state=self.random_state, seed=self.seed)
         pred_results['r2_score'] = float(np.mean(r2_means))
         if r2_stds is not None:
             pred_results['r2_std'] = float(np.sqrt(np.mean(r2_stds ** 2)))
@@ -313,9 +313,9 @@ class RegressionPerfData(PerfData):
         # and then averaging the metrics. If people start asking for SDs of MAE and RMSE scores over folds,
         # we'll change the code to compute all metrics the same way.
 
-        (ids, pred_vals, pred_stds) = self.get_pred_values(random_state=random_state, seed=seed)
-        real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
-        weights = self.get_weights(ids, random_state=random_state, seed=seed)
+        (ids, pred_vals, pred_stds) = self.get_pred_values(random_state=self.random_state, seed=self.seed)
+        real_vals = self.get_real_values(ids, random_state=self.random_state, seed=self.seed)
+        weights = self.get_weights(ids, random_state=self.random_state, seed=self.seed)
         mae_scores = []
         rms_scores = []
         response_means = []
@@ -453,8 +453,8 @@ class HybridPerfData(PerfData):
                            over tasks.
 
         """
-        ids, pred_vals, stds = self.get_pred_values(random_state=random_state, seed=seed)
-        real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
+        ids, pred_vals, stds = self.get_pred_values(random_state=self.random_state, seed=self.seed)
+        real_vals = self.get_real_values(ids, random_state=self.random_state, seed=self.seed)
         weights = self.get_weights(ids)
         scores = []
         
@@ -1196,7 +1196,7 @@ class KFoldClassificationPerfData(ClassificationPerfData):
             raise ValueError('Unknown dataset subset type "%s"' % self.subset)
 
         self.random_state = random_state
-        self.seed = seeed
+        self.seed = seed
         
         # All currently used classifiers generate class probabilities in their predict methods;
         # if in the future we implement a classification algorithm such as kNN that doesn't support
@@ -1210,6 +1210,8 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         self.num_tasks = dataset.y.shape[1]
         self.num_classes = len(set(model_dataset.dataset.y.flatten()))
         self.pred_vals = dict([(id, np.empty((0, self.num_tasks, self.num_classes), dtype=np.float32)) for id in dataset.ids])
+
+
 
         real_vals, self.weights = model_dataset.get_subset_responses_and_weights(self.subset, [])
         self.real_classes = real_vals
@@ -1256,9 +1258,11 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         """
         
         class_probs = self._reshape_preds(predicted_vals, random_state=random_state, seed=seed)
-    
+
         for i, id in enumerate(ids):
             self.pred_vals[id] = np.concatenate([self.pred_vals[id], class_probs[i,:,:].reshape((1,self.num_tasks,-1))], axis=0)
+
+    
         self.folds += 1
         real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
         weights = self.get_weights(ids)
@@ -1740,6 +1744,7 @@ class SimpleClassificationPerfData(ClassificationPerfData):
 
         """
         class_probs = self.pred_vals = self._reshape_preds(predicted_vals, random_state=random_state, seed=seed)
+
         if pred_stds is not None:
             self.pred_stds = self._reshape_preds(pred_stds, random_state=random_state, seed=seed)
         real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)

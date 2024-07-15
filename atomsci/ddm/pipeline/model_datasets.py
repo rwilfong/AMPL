@@ -369,7 +369,7 @@ class ModelDataset(object):
         if params.previously_featurized:
             try:
                 self.log.debug("Attempting to load featurized dataset")
-                featurized_dset_df = self.load_featurized_data(random_state=random_state, seed=seed)
+                featurized_dset_df = self.load_featurized_data(random_state=self.random_state, seed=self.seed)
                 if (params.max_dataset_rows > 0) and (len(featurized_dset_df) > params.max_dataset_rows):
                     featurized_dset_df = featurized_dset_df.sample(n=params.max_dataset_rows)
                 featurized_dset_df[params.id_col] = featurized_dset_df[params.id_col].astype(str)
@@ -599,7 +599,6 @@ class ModelDataset(object):
         """
 
         # Load the split table from the datastore or filesystem
-        print("(model_datasets.py) the seed used for load_presplit_dataset is:", seed)
         self.splitting = split.create_splitting(self.params, random_state=random_state, seed=seed)
 
         try:
@@ -670,6 +669,7 @@ class ModelDataset(object):
             combined_y = np.concatenate((train.y, valid.y), axis=0)
             combined_w = np.concatenate((train.w, valid.w), axis=0)
             combined_ids = np.concatenate((train.ids, valid.ids))
+
             self.combined_train_valid_data = NumpyDataset(combined_X, combined_y, w=combined_w, ids=combined_ids)
         return self.combined_train_valid_data
 
@@ -816,7 +816,6 @@ class MinimalDataset(ModelDataset):
 
                 attr: A pd.dataframe containing the compound ids and smiles
         """
-        print("(model_datasets.py) the seed used to get_featurized_data in MinimalDatasets is:", seed)
         params = self.params
         if is_featurized:
             # Input data frame already contains feature columns
@@ -1048,7 +1047,6 @@ class DatastoreDataset(ModelDataset):
         Returns:
             featurized_dset_df (pd.DataFrame): dataframe of the prefeaturized data, needs futher processing
         """
-        print("(model_datasets.py) The seed being passed into load_featurized_data for dataStore class is:", seed)
         
         # If a dataset OID for a specific featurized dataset was provided, use it
         if self.params.dataset_oid is not None:
@@ -1323,7 +1321,6 @@ class FileDataset(ModelDataset):
             self.dataset_key = self.params.dataset_key
             return dset_df
 
-        print("the seed used to load featurized data from the FileDataset is:", seed)
 
         # Otherwise, generate the expected path for the featurized dataset
         featurized_dset_name = self.featurization.get_featurized_dset_name(self.dataset_name)

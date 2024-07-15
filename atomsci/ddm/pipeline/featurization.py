@@ -103,7 +103,6 @@ def create_featurization(params, random_state=None, seed=None):
 
     """
     #TODO: Change molvae to generic autoencoder
-    print("the seed used in creating the featurization is:", seed)
     # pass into the classes 
     if params.featurizer in ('ecfp', 'graphconv', 'molvae') \
             or params.featurizer in pp.featurizer_wl:
@@ -522,7 +521,6 @@ class Featurization(object):
         self.feat_type = params.featurizer
         self.random_state = random_state
         self.seed = seed
-        print("the seed used to initialize the Featurization class is:", seed)
 
     # ****************************************************************************************
     def featurize_data(self, dset_df, params, contains_responses, random_state=None, seed=None):
@@ -661,7 +659,6 @@ class DynamicFeaturization(Featurization):
         super().__init__(params, random_state, seed)
         self.random_state= random_state
         self.seed = seed
-        print("the seed being used for the DynamicFeaturization class is:", self.seed)
         
         if self.feat_type == 'ecfp':
             self.featurizer_obj = dc.feat.CircularFingerprint(size=params.ecfp_size, radius=params.ecfp_radius)
@@ -907,7 +904,6 @@ class EmbeddingFeaturization(DynamicFeaturization):
         super().__init__(params, random_state, seed)
         self.random_state = random_state
         self.seed = seed
-        print("the seed used for the EmbeddingFeaturization class is:", self.seed)
         
         log_level = log.getEffectiveLevel()
         if params.embedding_model_path is not None:
@@ -968,8 +964,6 @@ class EmbeddingFeaturization(DynamicFeaturization):
         """
 
         # First featurize the molecules in dset_df using the featurizer of the embedding model. 
-
-        print("(featurization.py) the seed used to featurize_data (EmbeddingFeature) is:", seed)
         
         input_featurization = self.embedding_pipeline.model_wrapper.featurization
         self.embedding_pipeline.featurization = input_featurization
@@ -1275,7 +1269,6 @@ class DescriptorFeaturization(PersistentFeaturization):
 
         self.random_state = random_state
         self.seed = seed
-        print("The seed used in the DescriptorFeaturization class is:", self.seed)
         # Load mapping between descriptor types and lists of descriptors
         if not params.datastore:
             params.descriptor_spec_bucket = ''
@@ -1327,7 +1320,6 @@ class DescriptorFeaturization(PersistentFeaturization):
             vals (np.array): array of response values.
 
         """
-        print("(featurization.py) the seed used to extract prefeaturized data in DescriptorFeaturization is:", seed)
         md.check_task_columns(params, featurized_dset_df)
         user_specified_features = self.get_feature_columns()
         featurizer_obj = dc.feat.UserDefinedFeaturizer(user_specified_features, seed=seed)
@@ -1467,8 +1459,6 @@ class DescriptorFeaturization(PersistentFeaturization):
         Side effects:
             Overwrites the attribute precomp_descr_table (pd.DataFrame) with the appropriate descriptor table
         """
-
-        print("(featurization.py) the seed used to featurize the data (DescriptorFeaturization) is:", seed)
         
         # Compound ID and SMILES columns will be labeled the same as in the input dataset, unless overridden by
         # properties of the precomputed descriptor table
@@ -1576,7 +1566,6 @@ class DescriptorFeaturization(PersistentFeaturization):
         Returns:
             (list of DeepChem transformer objects): list of transformers for the feature matrix
         """
-        print("(featurization.py) the seed used for create_feature_transformer is:", seed)
         transformers_x = [trans.NormalizationTransformerMissingData(transform_X=True, dataset=dataset, random_state=random_state, seed=seed)]
         return transformers_x
 
@@ -1644,7 +1633,6 @@ class ComputedDescriptorFeaturization(DescriptorFeaturization):
         super().__init__(params, random_state, seed)
         self.random_state = random_state
         self.seed = seed
-        print("The seed used in the ComputedDescriptorsFeaturizer class is:", self.seed)
         cls = self.__class__
         if not params.descriptor_type in cls.supported_descriptor_types:
             raise ValueError("Descriptor type %s is not in the supported descriptor_type list" % params.descriptor_type)
