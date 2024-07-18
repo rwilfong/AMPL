@@ -79,7 +79,7 @@ binary_average_param = {'precision', 'recall'}
 binary_class_only = {'npv'}
 
 # ******************************************************************************************************************************
-def create_perf_data(prediction_type, model_dataset, transformers, subset, random_state=None, seed=None, **kwargs):
+def create_perf_data(prediction_type, model_dataset, transformers, subset, sampling_method=None, random_state=None, seed=None, **kwargs):
     """Factory function that creates the right kind of PerfData object for the given subset,
     prediction_type (classification or regression) and split strategy (k-fold or train/valid/test).
 
@@ -121,7 +121,8 @@ def create_perf_data(prediction_type, model_dataset, transformers, subset, rando
         if subset == 'full' or split_strategy == 'train_valid_test':
             return SimpleClassificationPerfData(model_dataset, transformers, subset, random_state=random_state, seed=seed, **kwargs)
         elif split_strategy == 'k_fold_cv':
-            return KFoldClassificationPerfData(model_dataset, transformers, subset, random_state=random_state, seed=seed, **kwargs)
+            return KFoldClassificationPerfData(model_dataset, transformers, subset, sampling_method,
+                                               random_state=random_state, seed=seed, **kwargs)
         else:
             raise ValueError('Unknown split_strategy %s' % split_strategy)
     elif prediction_type == "hybrid":
@@ -684,6 +685,7 @@ class ClassificationPerfData(PerfData):
             
         for i in range(self.num_tasks):
             nzrows = np.where(weights[:,i] != 0)[0]
+            print("model choice score, the nzrow len is:", len(nzrows))
             average_param = None
             if self.num_classes > 2:
                 if score_type in binary_class_only:
@@ -692,14 +694,16 @@ class ClassificationPerfData(PerfData):
                     average_param = 'macro'
                 # If more than 2 classes, task_real_vals is indicator matrix (one-hot encoded). 
                 task_real_vals = real_vals[nzrows,i,:]
-                task_class_probs = class_probs[nzrows,i,:]
+                task_class_probs = class_proubs[nzrows,i,:]
                 task_real_classes = np.argmax(task_real_vals, axis=1)
                 task_pred_classes = np.argmax(task_class_probs, axis=1)
             else:
                 # sklearn metrics functions are expecting single array of 1s and 0s for task_real_vals
                 # and task_class_probs for class 1 only
                 task_real_vals = real_vals[nzrows,i]
+                print("model choice score, the task_real_vals len is:", len(task_real_vals))
                 task_real_classes = task_real_vals
+                print("model choice score, the class probs len is:", len(class_probs))
                 task_class_probs = class_probs[nzrows,i,1]
                 if score_type in binary_average_param:
                     average_param = 'binary'
@@ -1146,7 +1150,7 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class KFoldClassificationPerfData
-    def __init__(self, model_dataset, transformers, subset, predict_probs=True, transformed=True, random_state=None, seed=None):
+    def __init__(self, model_dataset, transformers, subset, sampling_method=None, predict_probs=True, transformed=True, random_state=None, seed=None):
         """Initialize any attributes that are common to all KFoldClassificationPerfData subclasses
 
         Args:
@@ -1186,19 +1190,20 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
                num_classes (int): The number of classes to predict on
         """
-
         self.subset = subset
+        self.random_state = random_state
+        self.seed = seed
+
         if self.subset in ('train', 'valid', 'train_valid'):
-            dataset = model_dataset.combined_training_data()
+            for fold, (train, valid) in enumerate(model_dataset.train_valid_dsets):
+                print('iterating through fold:', fold)
+                dataset = model_dataset.combined_training_data(fold)
         elif self.subset == 'test':
             dataset = model_dataset.test_dset
         else:
             raise ValueError('Unknown dataset subset type "%s"' % self.subset)
-
-        self.random_state = random_state
-        self.seed = seed
         
-        # All currently used classifiers generate class probabilities in their predict methods;
+        # All currently used classifiers generate class probabilities ieir predict methods;
         # if in the future we implement a classification algorithm such as kNN that doesn't support
         # probabilistic predictions, the ModelWrapper for that classifier should pass predict_probs=False
         # when constructing this object. When that happens, modify the code in this class to support
@@ -1206,15 +1211,50 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         if not predict_probs:
             raise NotImplementedError("Need to add support for non-probabilistic classifiers")
 
+        # incorporate changes for each fold
+        
         self.num_cmpds = dataset.y.shape[0]
         self.num_tasks = dataset.y.shape[1]
         self.num_classes = len(set(model_dataset.dataset.y.flatten()))
+
         self.pred_vals = dict([(id, np.empty((0, self.num_tasks, self.num_classes), dtype=np.float32)) for id in dataset.ids])
+        
+        
+        real_vals, self.weights = model_dataset.get_subset_responses_and_weights(self.subset, [])
+        self.real_classes = real_vals
+        # Change real_vals to one-hot encoding
+        if self.num_classes > 2:
+            self.real_vals = dict([(id, 
+                                   np.concatenate([dc.metrics.to_one_hot(np.array([class_labels[j]]), self.num_classes)
+                                                   for j in range(self.num_tasks)], axis=0))
+                                   for id, class_labels in real_vals.items()])
+        else:
+            self.real_vals = real_vals
+        #print("the self.real_vals are:", self.real_vals)
+        
+        self.folds = 0
+        self.perf_metrics = []
+        self.model_score = None
+        if transformed:
+            # Predictions passed to accumulate_preds() will be transformed
+            self.transformers = transformers
+        else:
+            self.transformers = []
+        fold_index = [i for i, _ in enumerate(model_dataset.train_valid_dsets)]
 
+    # ****************************************************************************************
+    # class KFold
+    def update_fold_data(self, dataset, model_dataset):
+        self.num_cmpds = dataset.y.shape[0]
+        self.num_tasks = dataset.y.shape[1]
+        self.num_classes = len(set(model_dataset.dataset.y.flatten()))
 
+        print("the length of the dataset ids are:", len(dataset.ids))
+        self.pred_vals = dict([(id, np.empty((0, self.num_tasks, self.num_classes), dtype=np.float32)) for id in dataset.ids])
 
         real_vals, self.weights = model_dataset.get_subset_responses_and_weights(self.subset, [])
         self.real_classes = real_vals
+
         # Change real_vals to one-hot encoding
         if self.num_classes > 2:
             self.real_vals = dict([(id, 
@@ -1227,11 +1267,6 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         self.folds = 0
         self.perf_metrics = []
         self.model_score = None
-        if transformed:
-            # Predictions passed to accumulate_preds() will be transformed
-            self.transformers = transformers
-        else:
-            self.transformers = []
 
 
     # ****************************************************************************************
@@ -1257,10 +1292,15 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
         """
         
-        class_probs = self._reshape_preds(predicted_vals, random_state=random_state, seed=seed)
-
+        class_probs = self._reshape_preds(predicted_vals, random_state=random_state, seed=seed)        
+        print("id len:", len(ids))
+        print("self.pred_vals:", len(self.pred_vals))
+        #print('the self.pred_vals are:', self.pred_vals)
+        
         for i, id in enumerate(ids):
             self.pred_vals[id] = np.concatenate([self.pred_vals[id], class_probs[i,:,:].reshape((1,self.num_tasks,-1))], axis=0)
+            
+            #print("self.pred_vals[id]", self.pred_vals[id])
 
     
         self.folds += 1
@@ -2158,6 +2198,7 @@ class EpochManager:
                valid_perf_data
                test_perf_data
         """
+
         params = wrapper.params
         self.production = production
         self._subsets = subsets
@@ -2188,6 +2229,7 @@ class EpochManager:
         self.wrapper.test_perf_data = []
 
         for _ in range(params.max_epochs):
+            print("epochmanager, creating training, valid, and perf data for epochs")
             self.wrapper.train_perf_data.append(
                 create_perf_data(subset=self._subsets['train'], random_state=random_state, seed=seed, **kwargs))
             self.wrapper.valid_perf_data.append(
@@ -2236,9 +2278,7 @@ class EpochManager:
         train_perf = self.update(ei, 'train', train_dset, random_state=random_state, seed=seed)
         valid_perf = self.update(ei, 'valid', valid_dset, random_state=random_state, seed=seed)
         test_perf = self.update(ei, 'test', test_dset, random_state=random_state, seed=seed)
-
         return [p for p in [train_perf, valid_perf, test_perf] if not(p is None)]
-
     # ****************************************************************************************
     # class EpochManager
     def accumulate(self, ei, subset, dset, random_state=None, seed=None):
@@ -2334,10 +2374,26 @@ class EpochManager:
         """
         if dset is None:
             return None
+        
+        perf = self.accumulate(ei, subset, dset)
+        self.compute(ei, subset)
 
+        """
         perf = self.accumulate(ei, subset, dset, random_state=random_state, seed=seed)
-        self.compute(ei, subset, random_state=random_state, seed=seed)
+        self.compute(ei, subset, random_state=random_state, seed=seed)        
+        self.wrapper.train_perf_data = []
+        self.wrapper.valid_perf_data = []
+        self.wrapper.test_perf_data = []
 
+        for _ in range(params.max_epochs):
+            print("epochmanager, creating training, valid, and perf data for epochs")
+            self.wrapper.train_perf_data.append(
+                create_perf_data(subset=self._subsets['train'], random_state=random_state, seed=seed, **kwargs))
+            self.wrapper.valid_perf_data.append(
+                create_perf_data(subset=self._subsets['valid'], random_state=random_state, seed=seed, **kwargs))
+            self.wrapper.test_perf_data.append(
+                create_perf_data(subset=self._subsets['test'], random_state=random_state, seed=seed, **kwargs))
+        """
         if subset == 'valid':
             self.update_valid(ei, random_state=random_state, seed=seed)
 
@@ -2362,6 +2418,7 @@ class EpochManager:
         Side effects:
            Saves the functional as self._make_pred
         """
+        print("(epoch_manager) making the prediction")
         self._make_pred = functional
 
     # ****************************************************************************************

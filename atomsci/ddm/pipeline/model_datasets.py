@@ -15,7 +15,8 @@ from pathlib import Path
 import getpass
 import traceback
 import sys
-from atomsci.ddm.pipeline import random_seed_dev as rs 
+from atomsci.ddm.pipeline import random_seed as rs 
+from collections import defaultdict
 
 feather_supported = True
 try:
@@ -651,7 +652,7 @@ class ModelDataset(object):
 
     # ****************************************************************************************
 
-    def combined_training_data(self):
+    def combined_training_data(self, fold=None):
         """Returns a DeepChem Dataset object containing data for the combined training & validation compounds.
 
         Returns:
@@ -661,18 +662,27 @@ class ModelDataset(object):
         Side effects:
             Overwrites the combined_train_valid_data attribute of the ModelDataset with the combined data
         """
-        # All of the splits have the same combined train/valid data, regardless of whether we're using
-        # k-fold or train/valid/test splitting.
-        if self.combined_train_valid_data is None:
-            (train, valid) = self.train_valid_dsets[0]
+        if fold is not None:
+            #print("(model_datasets.py) Computing the combined_training_data for fold", fold)
+            (train, valid) = self.train_valid_dsets[fold]
             combined_X = np.concatenate((train.X, valid.X), axis=0)
             combined_y = np.concatenate((train.y, valid.y), axis=0)
             combined_w = np.concatenate((train.w, valid.w), axis=0)
             combined_ids = np.concatenate((train.ids, valid.ids))
-
-            self.combined_train_valid_data = NumpyDataset(combined_X, combined_y, w=combined_w, ids=combined_ids)
+        else:
+            (train, valid) = self.train_valid_dsets[0]
+            combined_X = np.concatenate((train.X, valid.X), axis=0)
+            print("the length of the train.y are:", len(train.y))
+            print("the length of the valid.y are:", len(valid.y))
+            combined_y = np.concatenate((train.y, valid.y), axis=0)
+            print("the length of the train.w are:", len(train.w))
+            print("the length of the valid.w are:", len(valid.w))
+            combined_w = np.concatenate((train.w, valid.w), axis=0)
+            print("the length of the train.ids are:", len(train.ids))
+            print("the length of the valid.ids are:", len(valid.ids))
+            combined_ids = np.concatenate((train.ids, valid.ids))
+        self.combined_train_valid_data = NumpyDataset(combined_X, combined_y, w=combined_w, ids=combined_ids)
         return self.combined_train_valid_data
-
     # ****************************************************************************************
 
     def has_all_feature_columns(self, dset_df):
@@ -691,7 +701,7 @@ class ModelDataset(object):
 
     # *************************************************************************************
 
-    def get_subset_responses_and_weights(self, subset, transformers):
+    def get_subset_responses_and_weights(self, subset, transformers, fold_index=None):
         """Returns a dictionary mapping compound IDs in the given dataset subset to arrays of response values
         and weights.  Used by the perf_data module under k-fold CV.
 
@@ -707,7 +717,9 @@ class ModelDataset(object):
         """
         if subset not in self.subset_response_dict:
             if subset in ('train', 'valid', 'train_valid'):
-                dataset = self.combined_training_data()
+                for fold, (train, valid) in enumerate(self.train_valid_dsets):
+                    print('(get_subset_responses_and_weights) for fold', fold)
+                    dataset = self.combined_training_data(fold)
             elif subset == 'test':
                 dataset = self.test_dset
             else:
