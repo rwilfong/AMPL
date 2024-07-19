@@ -694,7 +694,7 @@ class ClassificationPerfData(PerfData):
                     average_param = 'macro'
                 # If more than 2 classes, task_real_vals is indicator matrix (one-hot encoded). 
                 task_real_vals = real_vals[nzrows,i,:]
-                task_class_probs = class_proubs[nzrows,i,:]
+                task_class_probs = class_probs[nzrows,i,:]
                 task_real_classes = np.argmax(task_real_vals, axis=1)
                 task_pred_classes = np.argmax(task_class_probs, axis=1)
             else:
@@ -1197,7 +1197,7 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         if self.subset in ('train', 'valid', 'train_valid'):
             for fold, (train, valid) in enumerate(model_dataset.train_valid_dsets):
                 print('iterating through fold:', fold)
-                dataset = model_dataset.combined_training_data(fold)
+                dataset = model_dataset.combined_training_data()
         elif self.subset == 'test':
             dataset = model_dataset.test_dset
         else:
@@ -1293,8 +1293,10 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         """
         
         class_probs = self._reshape_preds(predicted_vals, random_state=random_state, seed=seed)        
-        print("id len:", len(ids))
-        print("self.pred_vals:", len(self.pred_vals))
+        print(self.subset)
+        print("\tid len:", len(ids))
+        print("\tself.pred_vals:", len(self.pred_vals))
+        print("\tself.real_vals:", len(self.real_vals))
         #print('the self.pred_vals are:', self.pred_vals)
         
         for i, id in enumerate(ids):
@@ -1361,6 +1363,8 @@ class KFoldClassificationPerfData(ClassificationPerfData):
             class_probs = np.concatenate([dc.trans.undo_transforms(self.pred_vals[id], self.transformers) for id in ids], axis=0)
             prob_stds = None
         pred_classes = np.argmax(class_probs, axis=2)
+
+        pdb.set_trace()
         return (ids, pred_classes, class_probs, prob_stds)
 
 

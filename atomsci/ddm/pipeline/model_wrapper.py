@@ -933,6 +933,8 @@ class NNModelWrapper(ModelWrapper):
                 train_perf = train_perf_data.accumulate_preds(train_pred, train_dset.ids, random_state=self.random_state, seed=self.seed)
                 test_perf = test_perf_data.accumulate_preds(test_pred, test_dset.ids, random_state=self.random_state, seed=self.seed)
 
+                # valid_perf_data contains both training and validation in self.pred_vals, but self.real_vals is only validation
+                # 
                 valid_perf = em.accumulate(ei, subset='valid', dset=valid_dset, random_state=self.random_state, seed=self.seed)
                 self.log.info("Fold %d, epoch %d: training %s = %.3f, validation %s = %.3f, test %s = %.3f" % (
                               k, ei, pipeline.metric_type, train_perf, pipeline.metric_type, valid_perf,
