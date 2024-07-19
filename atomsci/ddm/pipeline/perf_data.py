@@ -228,28 +228,6 @@ class RegressionPerfData(PerfData):
         self.seed=seed
 
     # ****************************************************************************************
-    def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
-        """Raises:
-            NotImplementedError: The method is implemented by subclasses
-        """
-        raise NotImplementedError
-
-    # ****************************************************************************************
-    def get_pred_values(self,random_state=None, seed=None):
-        """Raises:
-            NotImplementedError: The method is implemented by subclasses
-        """
-        raise NotImplementedError
-
-    # ****************************************************************************************
-    def compute_perf_metrics(self, per_task=False, random_state=None, seed=None):
-        """Raises:
-            NotImplementedError: The method is implemented by subclasses
-        """
-        raise NotImplementedError
-
-
-    # ****************************************************************************************
     # class RegressionPerfData
     def model_choice_score(self, score_type='r2', random_state=None, seed=None):
         """Computes a score function based on the accumulated predicted values, to be used for selecting
@@ -417,28 +395,6 @@ class HybridPerfData(PerfData):
         self.weights = None
         self.random_state = random_state
         self.seed = seed
-
-    # ****************************************************************************************
-    def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
-        """Raises:
-            NotImplementedError: The method is implemented by subclasses
-        """
-        raise NotImplementedError
-
-    # ****************************************************************************************
-    def get_pred_values(self, random_state=None, seed=None):
-        """Raises:
-            NotImplementedError: The method is implemented by subclasses
-        """
-        raise NotImplementedError
-
-    # ****************************************************************************************
-    def compute_perf_metrics(self, per_task=False, random_state=None, seed=None):
-        """Raises:
-            NotImplementedError: The method is implemented by subclasses
-        """
-        raise NotImplementedError
-
 
     # ****************************************************************************************
     # class HybridPerfData
@@ -646,21 +602,6 @@ class ClassificationPerfData(PerfData):
         self.seed = seed 
 
     # ****************************************************************************************
-    def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
-        """Raises:
-            NotImplementedError: The method is implemented by subclasses
-        """
-        raise NotImplementedError
-
-    # ****************************************************************************************
-    def get_pred_values(self, random_state=None, seed=None):
-        """Raises:
-            NotImplementedError: The method is implemented by subclasses
-        """
-        raise NotImplementedError
-
-
-    # ****************************************************************************************
     # class ClassificationPerfData
     def model_choice_score(self, score_type='roc_auc', random_state=None, seed=None):
         """Computes a score function based on the accumulated predicted values, to be used for selecting
@@ -679,8 +620,8 @@ class ClassificationPerfData(PerfData):
 
         """
         ids, pred_classes, class_probs, prob_stds = self.get_pred_values(random_state=random_state, seed=seed)
-        real_vals = self.get_real_values(random_state=random_state, seed=seed)
-        weights = self.get_weights()
+        real_vals = self.get_real_values(ids=ids, random_state=random_state, seed=seed)
+        weights = self.get_weights(ids=ids)
         scores = []
             
         for i in range(self.num_tasks):
@@ -1349,7 +1290,10 @@ class KFoldClassificationPerfData(ClassificationPerfData):
             probability estimates (only available for the 'train' and 'test' subsets; None otherwise).
 
         """
-        ids = sorted(self.pred_vals.keys())
+        all_ids = sorted(self.pred_vals.keys())
+        # with kfold + SMOTE, not all ids have predictions
+        ids = [id for id in all_ids if not (self.pred_vals[id].size == 0)]
+
         if self.subset in ['train', 'test', 'train_valid']:
             class_probs = np.concatenate([dc.trans.undo_transforms(self.pred_vals[id], self.transformers).mean(axis=0, keepdims=True)
                                    for id in ids], axis=0)
@@ -1364,7 +1308,6 @@ class KFoldClassificationPerfData(ClassificationPerfData):
             prob_stds = None
         pred_classes = np.argmax(class_probs, axis=2)
 
-        pdb.set_trace()
         return (ids, pred_classes, class_probs, prob_stds)
 
 
