@@ -1,6 +1,7 @@
 """Module used to perform sampling on classification datasets."""
 import pandas as pd 
 import numpy as np
+import logging
 import os
 # sampling specific libraries 
 from imblearn.over_sampling import SMOTE
@@ -22,7 +23,6 @@ def apply_sampling_method(train, params, random_state=None, seed=None):
     Returns:
         - train_resampled: a DeepChem NumpyDataset with train.X, train.y, train.w, and train.ids
     """
-    print("(sampling.py) the seed being passed into apply_sampling_method is:", seed)
     sampling_ratio = params.sampling_ratio
           
     if params.sampling_method=='SMOTE':
@@ -31,22 +31,21 @@ def apply_sampling_method(train, params, random_state=None, seed=None):
         X_resampled, y_resampled = smote.fit_resample(train.X, train.y.ravel())
         y_resampled=y_resampled.reshape(-1, 1)
         
-        # calculate synthetic weights.  
+        # calculate synthetic weights   
         num_original = len(train.X)
         num_synthetic = len(X_resampled)-num_original
-        
-        average_weight = np.mean(train.w)
+
+        # set the new weights equal to 1
+        average_weight = 1 #np.mean(train.w)
         synthetic_weights=np.full((num_synthetic,1), average_weight, dtype=np.float64)
         resampled_weights=np.concatenate([train.w, synthetic_weights])
         
-        # update the id length 
+        # update the id length with synthetic ids for any newly introduced data 
         synthetic_ids = [f"synthetic_{i}" for i in range(num_synthetic)]
         new_ids = np.concatenate([train.ids, synthetic_ids])
 
     elif params.sampling_method == 'undersampling':
         undersampler = RandomUnderSampler(sampling_strategy=sampling_ratio, random_state=seed) #, random_state=random_state
-        print("Original X shape:", train.X.shape)
-        print("original y shape:", train.y.shape)
         X_resampled, y_resampled = undersampler.fit_resample(train.X, train.y.ravel())
         y_resampled=y_resampled.reshape(-1, 1)
         

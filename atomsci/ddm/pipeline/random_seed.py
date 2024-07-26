@@ -20,6 +20,8 @@ class RandomStateGenerator:
         self.params = params
         if seed is not None:
             self.seed = seed
+        elif self.params.seed is not None: 
+            self.seed = self.params.seed
         else:
             self.seed = uuid.uuid4().int % (2**32)
         self.set_seed(self.seed)
@@ -31,15 +33,15 @@ class RandomStateGenerator:
         _seed = seed
         _random_state = np.random.default_rng(_seed)
         
-        # Set seed for numpy
+        # set seed for numpy
         np.random.default_rng(_seed)
         # needed for deepchem I think 
         np.random.seed(_seed)
         
-        # Set seed for random
+        # set seed for random
         random.seed(_seed)
         
-        # Set seed for PyTorch
+        # set seed for PyTorch
         torch.manual_seed(_seed)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(_seed)
@@ -52,7 +54,9 @@ class RandomStateGenerator:
         self.random_state = _random_state
 
     def get_seed(self):
+        """Returns the seed when called"""
         return self.seed
     
     def get_random_state(self):
+        """Returns the random state when called"""
         return self.random_state

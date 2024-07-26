@@ -363,7 +363,7 @@ class KFoldSplitting(Splitting):
         # passed into the constructor
         
         dm = DatasetManager(dataset=dataset, attr_df=attr_df, smiles_col=smiles_col,
-            needs_smiles=self.needs_smiles(), random_state=random_state, seed=seed)
+            needs_smiles=self.needs_smiles()) #, random_state=random_state, seed=seed
         dataset = dm.compact_dataset()
 
         # Under k-fold CV, the training/validation splits are determined by num_folds; only the test set fraction
@@ -500,7 +500,7 @@ class TrainValidTestSplitting(Splitting):
         # passed into the constructor
         
         dm = DatasetManager(dataset=dataset, attr_df=attr_df, smiles_col=smiles_col,
-            needs_smiles=self.needs_smiles(), random_state=random_state, seed=seed)
+            needs_smiles=self.needs_smiles()) # , random_state=random_state, seed=seed
         dataset = dm.compact_dataset()
 
         if self.split == 'butina':
@@ -564,8 +564,9 @@ class TrainValidTestSplitting(Splitting):
 
 class ProductionSplitter(dc.splits.Splitter):
     def split(
-            self, dataset, frac_train=1, frac_valid=1, frac_test=1, seed=None, log_every_n = None
+            self, dataset, frac_train=1, frac_valid=1, frac_test=1, log_every_n = None
     ):
+        # seed=None,
         """We implement a production run as having a split that contains all samples in every subset"""
         num_datapoints = len(dataset)
         return (list(range(num_datapoints)), list(range(num_datapoints)), list(range(num_datapoints)))
@@ -638,7 +639,7 @@ class ProductionSplitting(Splitting):
         # passed into the constructor
         
         dm = DatasetManager(dataset=dataset, attr_df=attr_df, smiles_col=smiles_col,
-            needs_smiles=self.needs_smiles(), random_state=random_state, seed=seed)
+            needs_smiles=self.needs_smiles()) # , random_state=random_state, seed=seed
         dataset = dm.compact_dataset()
         train, valid, test = self.splitter.train_valid_test_split(dataset, seed=seed)
         
@@ -670,7 +671,7 @@ class DatasetManager:
     This object transforms datasets to satisfy these requirements then undoes them
     once the splitting is done.
     """
-    def __init__(self, dataset, attr_df, smiles_col, needs_smiles, random_state=None, seed=None):
+    def __init__(self, dataset, attr_df, smiles_col, needs_smiles):
         """Before splitting we often have to compact the dataset to remove duplicate compound_ids. After
         splitting we will have to expand that dataset again. We save self.dataset_ori so we have
         a copy of the original. We keep self.id_df to know how to map from a set of compound_ids
@@ -683,18 +684,12 @@ class DatasetManager:
 
             smiles_col (string): name of SMILES column (hack for now until deepchem fixes scaffold and butina splitters)
 
-            random_state:
-
-            seed: 
         """
         self.dataset_ori = copy.deepcopy(dataset)
         self.attr_df = attr_df
         self.smiles_col = smiles_col
         self.needs_smiles = needs_smiles
 
-        self.random_state = random_state
-        self.seed = seed
-        
         self.dataset_dup = False
 
         # sometimes the ids in dataset_ori is already a SMILES string.

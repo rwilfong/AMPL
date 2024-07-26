@@ -6,12 +6,12 @@ from atomsci.ddm.pipeline import model_pipeline as mp
 from atomsci.ddm.pipeline import parameter_parser as parse
 from atomsci.ddm.utils.struct_utils import base_smiles_from_smiles
 
-from atomsci.ddm.pipeline import random_seed_dev as rs
+from atomsci.ddm.pipeline import random_seed as rs
 
 # =====================================================================================================
 def predict_from_tracker_model(model_uuid, collection, input_df, id_col='compound_id', smiles_col='rdkit_smiles',
                      response_col=None, conc_col=None, is_featurized=False, dont_standardize=False, AD_method=None, k=5, 
-                     dist_metric="euclidean", max_train_records_for_AD=1000):
+                     dist_metric="euclidean", max_train_records_for_AD=1000, random_state=None, seed=None):
     # random_state=None, seed=None
     """Loads a pretrained model from the model tracker database and runs predictions on compounds in an input
     data frame.
@@ -80,7 +80,7 @@ def predict_from_tracker_model(model_uuid, collection, input_df, id_col='compoun
 # =====================================================================================================
 def predict_from_model_file(model_path, input_df, id_col='compound_id', smiles_col='rdkit_smiles',
                      response_col=None, conc_col=None, is_featurized=False, dont_standardize=False, AD_method=None, k=5, dist_metric="euclidean",
-                     external_training_data=None, max_train_records_for_AD=1000):
+                     external_training_data=None, max_train_records_for_AD=1000, random_state=None, seed=None):
     """Loads a pretrained model from a model tarball file and runs predictions on compounds in an input
     data frame.
 

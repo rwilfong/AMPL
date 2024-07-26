@@ -79,7 +79,8 @@ binary_average_param = {'precision', 'recall'}
 binary_class_only = {'npv'}
 
 # ******************************************************************************************************************************
-def create_perf_data(prediction_type, model_dataset, transformers, subset, sampling_method=None, random_state=None, seed=None, **kwargs):
+def create_perf_data(prediction_type, model_dataset, transformers, subset, sampling_method=None, **kwargs):
+    # , random_state=None, seed=None
     """Factory function that creates the right kind of PerfData object for the given subset,
     prediction_type (classification or regression) and split strategy (k-fold or train/valid/test).
 
@@ -112,21 +113,21 @@ def create_perf_data(prediction_type, model_dataset, transformers, subset, sampl
     if prediction_type == 'regression':
         if subset == 'full' or split_strategy == 'train_valid_test':
             # Called simple because no need to track compound IDs across multiple training folds
-            return SimpleRegressionPerfData(model_dataset, transformers, subset, random_state=random_state, seed=seed, **kwargs)
+            return SimpleRegressionPerfData(model_dataset, transformers, subset, **kwargs) # , random_state=random_state, seed=seed
         elif split_strategy == 'k_fold_cv':
-            return KFoldRegressionPerfData(model_dataset, transformers, subset, random_state=random_state, seed=seed, **kwargs)
+            return KFoldRegressionPerfData(model_dataset, transformers, subset, **kwargs) # , random_state=random_state, seed=seed
         else:
             raise ValueError('Unknown split_strategy %s' % split_strategy)
     elif prediction_type == 'classification':
         if subset == 'full' or split_strategy == 'train_valid_test':
-            return SimpleClassificationPerfData(model_dataset, transformers, subset, random_state=random_state, seed=seed, **kwargs)
+            return SimpleClassificationPerfData(model_dataset, transformers, subset, **kwargs) # , random_state=random_state, seed=seed
         elif split_strategy == 'k_fold_cv':
-            return KFoldClassificationPerfData(model_dataset, transformers, subset, sampling_method,
-                                               random_state=random_state, seed=seed, **kwargs)
+            return KFoldClassificationPerfData(model_dataset, transformers, subset, sampling_method, **kwargs) 
+            # , random_state=random_state, seed=seed
         else:
             raise ValueError('Unknown split_strategy %s' % split_strategy)
     elif prediction_type == "hybrid":
-        return SimpleHybridPerfData(model_dataset, transformers, subset, random_state=random_state, seed=seed, **kwargs)
+        return SimpleHybridPerfData(model_dataset, transformers, subset, **kwargs) # , random_state=random_state, seed=seed
     else:
         raise ValueError('Unknown prediction type %s' % prediction_type)
 
@@ -137,11 +138,13 @@ class PerfData(object):
     concrete subclasses for classification and regression models.
     """
     # ****************************************************************************************
-    def __init__(self, model_dataset, subset, random_state=None, seed=None):
+    def __init__(self, model_dataset, subset):
+        # , random_state=None, seed=None
         """Initialize any attributes that are common to all PerfData subclasses"""
 
     # ****************************************************************************************
-    def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
+    def accumulate_preds(self, predicted_vals, ids, pred_stds=None):
+        # , random_state=None, seed=None
         """Raises:
             NotImplementedError: The method is implemented by subclasses
         """
@@ -149,20 +152,23 @@ class PerfData(object):
 
     # ****************************************************************************************
     def get_pred_values(self, random_state=None, seed=None):
+        # , random_state=None, seed=None
         """Raises:
             NotImplementedError: The method is implemented by subclasses
         """
         raise NotImplementedError
 
     # ****************************************************************************************
-    def get_real_values(self, ids=None, random_state=None, seed=None):
+    def get_real_values(self, ids=None):
+        # , random_state=None, seed=None
         """Raises:
             NotImplementedError: The method is implemented by subclasses
         """
         raise NotImplementedError
 
     # ****************************************************************************************
-    def get_weights(self, ids=None, random_state=None, seed=None):
+    def get_weights(self, ids=None):
+        # , random_state=None, seed=None
         """Returns the dataset response weights as an (ncmpds, ntasks) array
 
         Raises:
@@ -172,21 +178,24 @@ class PerfData(object):
 
 
     # ****************************************************************************************
-    def compute_perf_metrics(self, per_task=False, random_state=None, seed=None):
+    def compute_perf_metrics(self, per_task=False):
+        # , random_state=None, seed=None
         """Raises:
             NotImplementedError: The method is implemented by subclasses
         """
         raise NotImplementedError
 
     # ****************************************************************************************
-    def get_prediction_results(self, random_state=None, seed=None):
+    def get_prediction_results(self):
+        # , random_state=None, seed=None
         """Raises:
             NotImplementedError: The method is implemented by subclasses
         """
         raise NotImplementedError
 
     # ****************************************************************************************
-    def _reshape_preds(self, predicted_vals, random_state=None, seed=None):
+    def _reshape_preds(self, predicted_vals):
+        # , random_state=None, seed=None
         """Raises:
             NotImplementedError: The method is implemented by subclasses
         """
@@ -208,7 +217,8 @@ class RegressionPerfData(PerfData):
     """
     # ****************************************************************************************
     # class RegressionPerfData
-    def __init__(self, model_dataset, subset, random_state=None, seed=None):
+    def __init__(self, model_dataset, subset):
+        # , random_state=None, seed=None
         """Initialize any attributes that are common to all RegressionPerfData subclasses.
 
         Side effects:
@@ -224,12 +234,13 @@ class RegressionPerfData(PerfData):
         self.perf_metrics = []
         self.model_score = None
         self.weights = None
-        self.random_state=random_state
-        self.seed=seed
+        #self.random_state=random_state
+        # self.seed=seed
 
     # ****************************************************************************************
     # class RegressionPerfData
-    def model_choice_score(self, score_type='r2', random_state=None, seed=None):
+    def model_choice_score(self, score_type='r2'):
+        # , random_state=None, seed=None
         """Computes a score function based on the accumulated predicted values, to be used for selecting
         the best training epoch and other hyperparameters.
 
@@ -245,9 +256,9 @@ class RegressionPerfData(PerfData):
                            over tasks.
 
         """
-        ids, pred_vals, stds = self.get_pred_values(random_state=self.random_state, seed=self.seed)
-        real_vals = self.get_real_values(ids)
-        weights = self.get_weights(ids, random_state=self.random_state, seed=self.seed)
+        ids, pred_vals, stds = self.get_pred_values() # random_state=self.random_state, seed=self.seed
+        real_vals = self.get_real_values(ids=ids) # , random_state=self.random_state, seed=self.seed
+        weights = self.get_weights(ids=ids) # , random_state=self.random_state, seed=self.seed
         scores = []
         for i in range(self.num_tasks):
             nzrows = np.where(weights[:,i] != 0)[0]
@@ -263,7 +274,8 @@ class RegressionPerfData(PerfData):
 
     # ****************************************************************************************
     # class RegressionPerfData
-    def get_prediction_results(self, random_state=None, seed=None):
+    def get_prediction_results(self):
+        # , random_state=None, seed=None
         """Returns a dictionary of performance metrics for a regression model.
         The dictionary values should contain only primitive Python types, so that it can
         be easily JSONified.
@@ -278,7 +290,7 @@ class RegressionPerfData(PerfData):
         pred_results = {}
 
         # Get the mean and SD of R^2 scores over folds. If only single fold training was done, the SD will be None.
-        r2_means, r2_stds = self.compute_perf_metrics(per_task=True, random_state=self.random_state, seed=self.seed)
+        r2_means, r2_stds = self.compute_perf_metrics(per_task=True) # , random_state=self.random_state, seed=self.seed
         pred_results['r2_score'] = float(np.mean(r2_means))
         if r2_stds is not None:
             pred_results['r2_std'] = float(np.sqrt(np.mean(r2_stds ** 2)))
@@ -292,9 +304,9 @@ class RegressionPerfData(PerfData):
         # and then averaging the metrics. If people start asking for SDs of MAE and RMSE scores over folds,
         # we'll change the code to compute all metrics the same way.
 
-        (ids, pred_vals, pred_stds) = self.get_pred_values(random_state=self.random_state, seed=self.seed)
-        real_vals = self.get_real_values(ids, random_state=self.random_state, seed=self.seed)
-        weights = self.get_weights(ids, random_state=self.random_state, seed=self.seed)
+        (ids, pred_vals, pred_stds) = self.get_pred_values() # random_state=self.random_state, seed=self.seed
+        real_vals = self.get_real_values(ids) # , random_state=self.random_state, seed=self.seed
+        weights = self.get_weights(ids) # , random_state=self.random_state, seed=self.seed
         mae_scores = []
         rms_scores = []
         response_means = []
@@ -327,7 +339,8 @@ class RegressionPerfData(PerfData):
 
     # ****************************************************************************************
     # class RegressionPerfData
-    def _reshape_preds(self, predicted_vals, random_state=None, seed=None):
+    def _reshape_preds(self, predicted_vals):
+        # , random_state=None, seed=None
         """Reshape an array of regression model predictions to a standard (ncmpds, ntasks)
         format. Checks that the task dimension matches what we expect for the dataset.
 
@@ -377,7 +390,8 @@ class HybridPerfData(PerfData):
     """
     # ****************************************************************************************
     # class HybridPerfData
-    def __init__(self, model_dataset, subset, random_state=None, seed=None):
+    def __init__(self, model_dataset, subset):
+        # , random_state=None, seed=None
         """Initialize any attributes that are common to all HybridPerfData subclasses.
 
         Side effects:
@@ -393,12 +407,13 @@ class HybridPerfData(PerfData):
         self.perf_metrics = []
         self.model_score = None
         self.weights = None
-        self.random_state = random_state
-        self.seed = seed
+        #self.random_state = random_state
+        #self.seed = seed
 
     # ****************************************************************************************
     # class HybridPerfData
-    def model_choice_score(self, score_type='r2', random_state=None, seed=None):
+    def model_choice_score(self, score_type='r2'):
+        # , random_state=None, seed=None
         """Computes a score function based on the accumulated predicted values, to be used for selecting
         the best training epoch and other hyperparameters.
 
@@ -410,8 +425,8 @@ class HybridPerfData(PerfData):
                            over tasks.
 
         """
-        ids, pred_vals, stds = self.get_pred_values(random_state=self.random_state, seed=self.seed)
-        real_vals = self.get_real_values(ids, random_state=self.random_state, seed=self.seed)
+        ids, pred_vals, stds = self.get_pred_values() # random_state=self.random_state, seed=self.seed
+        real_vals = self.get_real_values(ids) # , random_state=self.random_state, seed=self.seed
         weights = self.get_weights(ids)
         scores = []
         
@@ -446,7 +461,8 @@ class HybridPerfData(PerfData):
 
     # ****************************************************************************************
     # class HybridPerfData
-    def get_prediction_results(self, random_state=None, seed=None):
+    def get_prediction_results(self):
+        # , random_state=None, seed=None
         """Returns a dictionary of performance metrics for a regression model.
         The dictionary values should contain only primitive Python types, so that it can
         be easily JSONified.
@@ -461,7 +477,7 @@ class HybridPerfData(PerfData):
         pred_results = {}
 
         # Get the mean and SD of R^2 scores over folds. If only single fold training was done, the SD will be None.
-        r2_means, r2_stds = self.compute_perf_metrics(per_task=True, random_state=random_state, seed=seed)
+        r2_means, r2_stds = self.compute_perf_metrics(per_task=True) # , random_state=random_state, seed=seed
         pred_results['r2_score'] = float(np.mean(r2_means))
         if r2_stds is not None:
             pred_results['r2_std'] = float(np.sqrt(np.mean(r2_stds ** 2)))
@@ -475,9 +491,9 @@ class HybridPerfData(PerfData):
         # and then averaging the metrics. If people start asking for SDs of MAE and RMSE scores over folds,
         # we'll change the code to compute all metrics the same way.
 
-        (ids, pred_vals, pred_stds) = self.get_pred_values(random_state=random_state, seed=seed)
-        real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
-        weights = self.get_weights(ids, random_state=random_state, seed=seed)
+        (ids, pred_vals, pred_stds) = self.get_pred_values() # random_state=random_state, seed=seed
+        real_vals = self.get_real_values(ids) # random_state=random_state, seed=seed
+        weights = self.get_weights(ids) # random_state=random_state, seed=seed
         mae_scores = []
         rms_scores = []
         response_means = []
@@ -535,7 +551,8 @@ class HybridPerfData(PerfData):
 
     # ****************************************************************************************
     # class HybridPerfData
-    def _reshape_preds(self, predicted_vals, random_state=None, seed=None):
+    def _reshape_preds(self, predicted_vals):
+        # , random_state=None, seed=None
         """Reshape an array of regression model predictions to a standard (ncmpds, ntasks)
         format. Checks that the task dimension matches what we expect for the dataset.
 
@@ -572,7 +589,8 @@ class ClassificationPerfData(PerfData):
     """
     # ****************************************************************************************
     # class ClassificationPerfData
-    def __init__(self, model_dataset, subset, random_state=None, seed=None):
+    def __init__(self, model_dataset, subset):
+        # , random_state=None, seed=None
         """Initialize any attributes that are common to all ClassificationPerfData subclasses
 
         Side effects:
@@ -598,12 +616,13 @@ class ClassificationPerfData(PerfData):
         self.perf_metrics = []
         self.model_score = None
         self.weights = None
-        self.random_state = random_state
-        self.seed = seed 
+        #self.random_state = random_state
+        #self.seed = seed 
 
     # ****************************************************************************************
     # class ClassificationPerfData
-    def model_choice_score(self, score_type='roc_auc', random_state=None, seed=None):
+    def model_choice_score(self, score_type='roc_auc'):
+        #  , random_state=None, seed=None
         """Computes a score function based on the accumulated predicted values, to be used for selecting
         the best training epoch and other hyperparameters.
 
@@ -619,14 +638,13 @@ class ClassificationPerfData(PerfData):
                            over tasks.
 
         """
-        ids, pred_classes, class_probs, prob_stds = self.get_pred_values(random_state=random_state, seed=seed)
-        real_vals = self.get_real_values(ids=ids, random_state=random_state, seed=seed)
+        ids, pred_classes, class_probs, prob_stds = self.get_pred_values() # random_state=random_state, seed=seed
+        real_vals = self.get_real_values(ids=ids) # , random_state=random_state, seed=seed
         weights = self.get_weights(ids=ids)
         scores = []
             
         for i in range(self.num_tasks):
             nzrows = np.where(weights[:,i] != 0)[0]
-            print("model choice score, the nzrow len is:", len(nzrows))
             average_param = None
             if self.num_classes > 2:
                 if score_type in binary_class_only:
@@ -642,9 +660,7 @@ class ClassificationPerfData(PerfData):
                 # sklearn metrics functions are expecting single array of 1s and 0s for task_real_vals
                 # and task_class_probs for class 1 only
                 task_real_vals = real_vals[nzrows,i]
-                print("model choice score, the task_real_vals len is:", len(task_real_vals))
                 task_real_classes = task_real_vals
-                print("model choice score, the class probs len is:", len(class_probs))
                 task_class_probs = class_probs[nzrows,i,1]
                 if score_type in binary_average_param:
                     average_param = 'binary'
@@ -667,7 +683,8 @@ class ClassificationPerfData(PerfData):
 
     # ****************************************************************************************
     # class ClassificationPerfData
-    def get_prediction_results(self, random_state=None, seed=None):
+    def get_prediction_results(self):
+        # , random_state=None, seed=None
         """Returns a dictionary of performance metrics for a classification model.
         The dictionary values will contain only primitive Python types, so that it can
         be easily JSONified.
@@ -680,10 +697,10 @@ class ClassificationPerfData(PerfData):
 
         """
         pred_results = {}
-        (ids, pred_classes, class_probs, prob_stds) = self.get_pred_values(random_state=random_state, seed=seed)
+        (ids, pred_classes, class_probs, prob_stds) = self.get_pred_values() # random_state=random_state, seed=seed
 
-        real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
-        weights = self.get_weights(ids, random_state=random_state, seed=seed)
+        real_vals = self.get_real_values(ids) # , random_state=random_state, seed=seed
+        weights = self.get_weights(ids) # , random_state=random_state, seed=seed
         if self.num_classes > 2:
             real_val_list = [real_vals[:,i,:] for i in range(self.num_tasks)]
             class_prob_list = [class_probs[:,i,:] for i in range(self.num_tasks)]
@@ -694,7 +711,7 @@ class ClassificationPerfData(PerfData):
             class_prob_list = [class_probs[:,i,1] for i in range(self.num_tasks)]
 
         # Get the mean and SD of ROC AUC scores over folds. If only single fold training was done, the SD will be None.
-        roc_auc_means, roc_auc_stds = self.compute_perf_metrics(per_task=True, random_state=random_state, seed=seed)
+        roc_auc_means, roc_auc_stds = self.compute_perf_metrics(per_task=True) # , random_state=random_state, seed=seed
         pred_results['roc_auc_score'] = float(np.mean(roc_auc_means))
         if roc_auc_stds is not None:
             pred_results['roc_auc_std'] = float(np.sqrt(np.mean(roc_auc_stds ** 2)))
@@ -797,7 +814,8 @@ class ClassificationPerfData(PerfData):
 
     # ****************************************************************************************
     # class ClassificationPerfData
-    def _reshape_preds(self, predicted_vals, random_state=None, seed=None):
+    def _reshape_preds(self, predicted_vals):
+        # , random_state=None, seed=None
         """Reshape an array of classification model predictions to a standard (ncmpds, ntasks, nclasses)
         format. Checks that the task and class dimensions match what we expect for the dataset.
 
@@ -854,7 +872,8 @@ class KFoldRegressionPerfData(RegressionPerfData):
 
     # ****************************************************************************************
     # class KFoldRegressionPerfData
-    def __init__(self, model_dataset, transformers, subset, transformed=True, random_state=None, seed=None):
+    def __init__(self, model_dataset, transformers, subset, transformed=True):
+        # , random_state=None, seed=None
         """# Initialize any attributes that are common to all KFoldRegressionPerfData subclasses
         Args:
             model_dataset (ModelDataset object): contains the dataset and related methods
@@ -906,12 +925,13 @@ class KFoldRegressionPerfData(RegressionPerfData):
             self.real_vals, self.weights = model_dataset.get_subset_responses_and_weights(self.subset, transformers)
             self.transformers = []
             
-        self.random_state = random_state
-        self.seed = seed
+        #self.random_state = random_state
+        #self.seed = seed
 
     # ****************************************************************************************
     # class KFoldRegressionPerfData
-    def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
+    def accumulate_preds(self, predicted_vals, ids, pred_stds=None):
+        # , random_state=None, seed=None
         """Add training, validation or test set predictions from the current fold to the data structure
         where we keep track of them.
 
@@ -957,7 +977,7 @@ class KFoldRegressionPerfData(RegressionPerfData):
 
         pred_vals = dc.trans.undo_transforms(predicted_vals, self.transformers)
 
-        real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
+        real_vals = self.get_real_values(ids)# , random_state=random_state, seed=seed
         weights = self.get_weights(ids)
         scores = []
         for i in range(self.num_tasks):
@@ -971,7 +991,8 @@ class KFoldRegressionPerfData(RegressionPerfData):
 
     # ****************************************************************************************
     # class KFoldRegressionPerfData
-    def get_pred_values(self, random_state=None, seed=None):
+    def get_pred_values(self):
+        # , random_state=None, seed=None
         """Returns the predicted values accumulated over training, with any transformations undone.
         If self.subset is 'train' or 'test', the function will return averages over the training folds for each compound
         along with standard deviations when there are predictions from multiple folds. Otherwise, returns a
@@ -987,6 +1008,8 @@ class KFoldRegressionPerfData(RegressionPerfData):
 
         """
         ids = sorted(self.pred_vals.keys())
+        # in the case of sampling (kfold + SMOTE), not all ids have predictions
+        ids = [id for id in all_ids if not (self.pred_vals[id].size == 0)]
         if self.subset in ['train', 'test', 'train_valid']:
             rawvals = np.concatenate([self.pred_vals[id].mean(axis=0, keepdims=True).reshape((1,-1)) for id in ids])
             vals = dc.trans.undo_transforms(rawvals, self.transformers)
@@ -1004,7 +1027,8 @@ class KFoldRegressionPerfData(RegressionPerfData):
 
     # ****************************************************************************************
     # class KFoldRegressionPerfData
-    def get_real_values(self, ids=None, random_state=None, seed=None):
+    def get_real_values(self, ids=None):
+        # , random_state=None, seed=None
         """Returns the real dataset response values, with any transformations undone, as an (ncmpds, ntasks) array
         in the same ID order as get_pred_values() (unless ids is specified).
 
@@ -1024,7 +1048,8 @@ class KFoldRegressionPerfData(RegressionPerfData):
 
     # ****************************************************************************************
     # class KFoldRegressionPerfData
-    def get_weights(self, ids=None, random_state=None, seed=None):
+    def get_weights(self, ids=None):
+        # , random_state=None, seed=None
         """Returns the dataset response weights, as an (ncmpds, ntasks) array
         in the same ID order as get_pred_values() (unless ids is specified).
 
@@ -1044,7 +1069,8 @@ class KFoldRegressionPerfData(RegressionPerfData):
 
     # ****************************************************************************************
     # class KFoldRegressionPerfData
-    def compute_perf_metrics(self, per_task=False, random_state=None, seed=None):
+    def compute_perf_metrics(self, per_task=False):
+        # , random_state=None, seed=None
         """Computes the R-squared metrics for each task based on the accumulated values, averaged over
         training folds, along with standard deviations of the scores. If per_task is False, the scores
         are averaged over tasks and the overall standard deviation is reported instead.
@@ -1091,7 +1117,8 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class KFoldClassificationPerfData
-    def __init__(self, model_dataset, transformers, subset, sampling_method=None, predict_probs=True, transformed=True, random_state=None, seed=None):
+    def __init__(self, model_dataset, transformers, subset, sampling_method=None, predict_probs=True, transformed=True):
+        # , random_state=None, seed=None
         """Initialize any attributes that are common to all KFoldClassificationPerfData subclasses
 
         Args:
@@ -1132,12 +1159,11 @@ class KFoldClassificationPerfData(ClassificationPerfData):
                num_classes (int): The number of classes to predict on
         """
         self.subset = subset
-        self.random_state = random_state
-        self.seed = seed
+        #self.random_state = random_state
+        #self.seed = seed
 
         if self.subset in ('train', 'valid', 'train_valid'):
             for fold, (train, valid) in enumerate(model_dataset.train_valid_dsets):
-                print('iterating through fold:', fold)
                 dataset = model_dataset.combined_training_data()
         elif self.subset == 'test':
             dataset = model_dataset.test_dset
@@ -1171,7 +1197,6 @@ class KFoldClassificationPerfData(ClassificationPerfData):
                                    for id, class_labels in real_vals.items()])
         else:
             self.real_vals = real_vals
-        #print("the self.real_vals are:", self.real_vals)
         
         self.folds = 0
         self.perf_metrics = []
@@ -1190,7 +1215,6 @@ class KFoldClassificationPerfData(ClassificationPerfData):
         self.num_tasks = dataset.y.shape[1]
         self.num_classes = len(set(model_dataset.dataset.y.flatten()))
 
-        print("the length of the dataset ids are:", len(dataset.ids))
         self.pred_vals = dict([(id, np.empty((0, self.num_tasks, self.num_classes), dtype=np.float32)) for id in dataset.ids])
 
         real_vals, self.weights = model_dataset.get_subset_responses_and_weights(self.subset, [])
@@ -1212,7 +1236,8 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class KFoldClassificationPerfData
-    def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
+    def accumulate_preds(self, predicted_vals, ids, pred_stds=None):
+        # , random_state=None, seed=None
         """Add training, validation or test set predictions from the current fold to the data structure
         where we keep track of them.
 
@@ -1233,21 +1258,16 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
         """
         
-        class_probs = self._reshape_preds(predicted_vals, random_state=random_state, seed=seed)        
-        print(self.subset)
-        print("\tid len:", len(ids))
-        print("\tself.pred_vals:", len(self.pred_vals))
-        print("\tself.real_vals:", len(self.real_vals))
-        #print('the self.pred_vals are:', self.pred_vals)
+        class_probs = self._reshape_preds(predicted_vals) # , random_state=random_state, seed=seed        
+
         
         for i, id in enumerate(ids):
             self.pred_vals[id] = np.concatenate([self.pred_vals[id], class_probs[i,:,:].reshape((1,self.num_tasks,-1))], axis=0)
             
-            #print("self.pred_vals[id]", self.pred_vals[id])
 
     
         self.folds += 1
-        real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
+        real_vals = self.get_real_values(ids) # , random_state=random_state, seed=seed
         weights = self.get_weights(ids)
         # Break out different predictions for each task, with zero-weight compounds masked out, and compute per-task metrics
         scores = []
@@ -1273,7 +1293,8 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class KFoldClassificationPerfData
-    def get_pred_values(self, random_state=None, seed=None):
+    def get_pred_values(self):
+        # , random_state=None, seed=None
         """Returns the predicted values accumulated over training, with any transformations undone.  If self.subset
         is 'train', 'train_valid' or 'test', the function will return the means and standard deviations of the class probabilities
         over the training folds for each compound, for each task.  Otherwise, returns a single set of predicted probabilites for
@@ -1313,7 +1334,8 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class KFoldClassificationPerfData
-    def get_real_values(self, ids=None, random_state=None, seed=None):
+    def get_real_values(self, ids=None):
+        # , random_state=None, seed=None
         """Returns the real dataset response values as an (ncmpds, ntasks, nclasses) array of indicator bits
         (if nclasses > 2) or an (ncmpds, ntasks) array of binary classes (if nclasses == 2),
         with compound IDs in the same order as in the return from get_pred_values() (unless ids is specified).
@@ -1334,7 +1356,8 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class KFoldClassificationPerfData
-    def get_weights(self, ids=None, random_state=None, seed=None):
+    def get_weights(self, ids=None):
+        # , random_state=None, seed=None
         """Returns the dataset response weights, as an (ncmpds, ntasks) array
         in the same ID order as get_pred_values() (unless ids is specified).
 
@@ -1359,7 +1382,8 @@ class KFoldClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class KFoldClassificationPerfData
-    def compute_perf_metrics(self, per_task=False, random_state=None, seed=None):
+    def compute_perf_metrics(self, per_task=False):
+        # , random_state=None, seed=None
         """Computes the ROC AUC metrics for each task based on the accumulated values, averaged over
         training folds, along with standard deviations of the scores. If per_task is False, the scores
         are averaged over tasks and the overall standard deviation is reported instead.
@@ -1412,7 +1436,8 @@ class SimpleRegressionPerfData(RegressionPerfData):
 
     # ****************************************************************************************
     # class SimpleRegressionPerfData
-    def __init__(self, model_dataset, transformers, subset, transformed=True, random_state=None, seed=None):
+    def __init__(self, model_dataset, transformers, subset, transformed=True):
+        # , random_state=None, seed=None
         """Initialize any attributes that are common to all SimpleRegressionPerfData subclasses
 
         Args:
@@ -1470,13 +1495,14 @@ class SimpleRegressionPerfData(RegressionPerfData):
             self.real_vals = dc.trans.undo_transforms(dataset.y, transformers)
             self.transformers = []
 
-        self.random_state = random_state
-        self.seed = seed
+        #self.random_state = random_state
+        #self.seed = seed
 
 
     # ****************************************************************************************
     # class SimpleRegressionPerfData
-    def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
+    def accumulate_preds(self, predicted_vals, ids, pred_stds=None):
+        # , random_state=None, seed=None
         """Add training, validation or test set predictions to the data structure
         where we keep track of them.
 
@@ -1491,12 +1517,12 @@ class SimpleRegressionPerfData(RegressionPerfData):
             Reshapes the predicted values and the standard deviations (if they are given)
 
         """
-        self.pred_vals = self._reshape_preds(predicted_vals, random_state=random_state, seed=seed)
+        self.pred_vals = self._reshape_preds(predicted_vals) # , random_state=random_state, seed=seed
         if pred_stds is not None:
-            self.pred_stds = self._reshape_preds(pred_stds, random_state=random_state, seed=seed)
+            self.pred_stds = self._reshape_preds(pred_stds) # , random_state=random_state, seed=seed
         pred_vals = dc.trans.undo_transforms(self.pred_vals, self.transformers)
-        real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
-        weights = self.get_weights(ids, random_state=random_state, seed=seed)
+        real_vals = self.get_real_values(ids) # , random_state=random_state, seed=seed
+        weights = self.get_weights(ids) # , random_state=random_state, seed=seed
         scores = []
         for i in range(self.num_tasks):
             nzrows = np.where(weights[:,i] != 0)[0]
@@ -1509,7 +1535,8 @@ class SimpleRegressionPerfData(RegressionPerfData):
 
     # ****************************************************************************************
     # class SimpleRegressionPerfData
-    def get_pred_values(self, random_state=None, seed=None):
+    def get_pred_values(self):
+        # , random_state=None, seed=None
         """Returns the predicted values accumulated over training, with any transformations undone.  Returns
         a tuple (ids, values, stds), where ids is the list of compound IDs, values is a (ncmpds, ntasks) array
         of predictions, and stds is always None for this class.
@@ -1537,7 +1564,8 @@ class SimpleRegressionPerfData(RegressionPerfData):
 
     # ****************************************************************************************
     # class SimpleRegressionPerfData
-    def get_real_values(self, ids=None, random_state=None, seed=None):
+    def get_real_values(self, ids=None):
+        # , random_state=None, seed=None
         """Returns the real dataset response values, with any transformations undone, as an (ncmpds, ntasks) array
         with compounds in the same ID order as in the return from get_pred_values().
 
@@ -1553,7 +1581,8 @@ class SimpleRegressionPerfData(RegressionPerfData):
 
     # ****************************************************************************************
     # class SimpleRegressionPerfData
-    def get_weights(self, ids=None, random_state=None, seed=None):
+    def get_weights(self, ids=None):
+        # , random_state=None, seed=None
         """Returns the dataset response weights as an (ncmpds, ntasks) array
 
         Args:
@@ -1568,7 +1597,8 @@ class SimpleRegressionPerfData(RegressionPerfData):
 
     # ****************************************************************************************
     # class SimpleRegressionPerfData
-    def compute_perf_metrics(self, per_task=False, random_state=None, seed=None):
+    def compute_perf_metrics(self, per_task=False):
+        # , random_state=None, seed=None
         """Returns the R-squared metrics for each task or averaged over tasks based on the accumulated values
 
         Args:
@@ -1618,7 +1648,8 @@ class SimpleClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class SimpleClassificationPerfData
-    def __init__(self, model_dataset, transformers, subset, predict_probs=True, transformed=True, random_state=None, seed=None):
+    def __init__(self, model_dataset, transformers, subset, predict_probs=True, transformed=True):
+        #  random_state=None, seed=None
         """Initialize any attributes that are common to all SimpleClassificationPerfData subclasses
 
         Args:
@@ -1693,8 +1724,8 @@ class SimpleClassificationPerfData(ClassificationPerfData):
             self.transformers = []
         self.weights = dataset.w
 
-        self.random_state = random_state
-        self.seed = seed
+        #self.random_state = random_state
+        #self.seed = seed
 
         # TODO: Everything down to here is same as in SimpleRegressionPerfData.__init__.
         # TODO: Consider defining a SimplePerfData class with the common stuff in its __init__
@@ -1715,7 +1746,8 @@ class SimpleClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class SimpleClassificationPerfData
-    def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
+    def accumulate_preds(self, predicted_vals, ids, pred_stds=None):
+        # , random_state=None, seed=None
         """Add training, validation or test set predictions from the current dataset to the data structure
         where we keep track of them.
 
@@ -1730,12 +1762,12 @@ class SimpleClassificationPerfData(ClassificationPerfData):
             Updates self.pred_vals and self.perf_metrics
 
         """
-        class_probs = self.pred_vals = self._reshape_preds(predicted_vals, random_state=random_state, seed=seed)
+        class_probs = self.pred_vals = self._reshape_preds(predicted_vals) # , random_state=random_state, seed=seed
 
         if pred_stds is not None:
-            self.pred_stds = self._reshape_preds(pred_stds, random_state=random_state, seed=seed)
-        real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
-        weights = self.get_weights(ids, random_state=random_state, seed=seed)
+            self.pred_stds = self._reshape_preds(pred_stds) # , random_state=random_state, seed=seed
+        real_vals = self.get_real_values(ids) # , random_state=random_state, seed=seed
+        weights = self.get_weights(ids) # , random_state=random_state, seed=seed
         # Break out different predictions for each task, with zero-weight compounds masked out, and compute per-task metrics
         scores = []
         for i in range(self.num_tasks):
@@ -1760,7 +1792,8 @@ class SimpleClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class SimpleClassificationPerfData
-    def get_pred_values(self, random_state=None, seed=None):
+    def get_pred_values(self):
+        # , random_state=None, seed=None 
         """Returns the predicted values accumulated over training, with any transformations undone.
         If self.subset is 'train', the function will average class probabilities over the k-1 folds in which each
         compound was part of the training set, and return the most probable class. Otherwise, there should be a
@@ -1789,7 +1822,8 @@ class SimpleClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class SimpleClassificationPerfData
-    def get_real_values(self, ids=None, random_state=None, seed=None):
+    def get_real_values(self, ids=None):
+        # , random_state=None, seed=None
         """Returns the real dataset response values as an (ncmpds, ntasks, nclasses) array of indicator bits.
         If nclasses == 2, the returned array has dimension (ncmpds, ntasks).
 
@@ -1805,7 +1839,8 @@ class SimpleClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class SimpleClassificationPerfData
-    def get_weights(self, ids=None, random_state=None, seed=None):
+    def get_weights(self, ids=None):
+        # , random_state=None, seed=None
         """Returns the dataset response weights
 
         Args:
@@ -1820,7 +1855,8 @@ class SimpleClassificationPerfData(ClassificationPerfData):
 
     # ****************************************************************************************
     # class SimpleClassificationPerfData
-    def compute_perf_metrics(self, per_task=False, random_state=None, seed=None):
+    def compute_perf_metrics(self, per_task=False):
+        # , random_state=None, seed=None
         """Returns the ROC_AUC metrics for each task based on the accumulated predictions. If
         per_task is False, returns the average ROC AUC over tasks.
 
@@ -1867,7 +1903,8 @@ class SimpleHybridPerfData(HybridPerfData):
 
     # ****************************************************************************************
     # class SimpleHybridPerfData
-    def __init__(self, model_dataset, transformers, subset, is_ki, ki_convert_ratio=None, transformed=True, random_state=None, seed=None):
+    def __init__(self, model_dataset, transformers, subset, is_ki, ki_convert_ratio=None, transformed=True):
+        # , random_state=None, seed=None
         """Initialize any attributes that are common to all SimpleRegressionPerfData subclasses
 
         Args:
@@ -1933,12 +1970,13 @@ class SimpleHybridPerfData(HybridPerfData):
         else:
             self.real_vals = transformers[0].untransform(dataset.y)
             self.transformers = []
-        self.random_state = random_state
-        self.seed = seed
+        #self.random_state = random_state
+        #self.seed = seed
 
     # ****************************************************************************************
     # class SimpleHybridPerfData
-    def accumulate_preds(self, predicted_vals, ids, pred_stds=None, random_state=None, seed=None):
+    def accumulate_preds(self, predicted_vals, ids, pred_stds=None):
+        # , random_state=None, seed=None
         """Add training, validation or test set predictions to the data structure
         where we keep track of them.
 
@@ -1954,12 +1992,12 @@ class SimpleHybridPerfData(HybridPerfData):
 
         """
 
-        self.pred_vals = self._reshape_preds(predicted_vals, random_state=random_state, seed=seed)
+        self.pred_vals = self._reshape_preds(predicted_vals) # , random_state=random_state, seed=seed
         if pred_stds is not None:
-            self.pred_stds = self._reshape_preds(pred_stds, random_state=random_state, seed=seed)
+            self.pred_stds = self._reshape_preds(pred_stds) # , random_state=random_state, seed=seed
         # pred_vals = self.transformers[0].untransform(self.pred_vals, isreal=False)
         pred_vals = self.pred_vals
-        real_vals = self.get_real_values(ids, random_state=random_state, seed=seed)
+        real_vals = self.get_real_values(ids) # random_state=random_state, seed=seed
         weights = self.get_weights(ids)
         scores = []
         pos_ki = np.where(np.isnan(real_vals[:, 1]))[0]
@@ -2010,7 +2048,8 @@ class SimpleHybridPerfData(HybridPerfData):
 
     # ****************************************************************************************
     # class SimpleHybridPerfData
-    def get_pred_values(self, random_state=None, seed=None):
+    def get_pred_values(self):
+        # , random_state=None, seed=None
         """Returns the predicted values accumulated over training, with any transformations undone.  Returns
         a tuple (ids, values, stds), where ids is the list of compound IDs, values is a (ncmpds, ntasks) array
         of predictions, and stds is always None for this class.
@@ -2033,7 +2072,8 @@ class SimpleHybridPerfData(HybridPerfData):
 
     # ****************************************************************************************
     # class SimpleHybridPerfData
-    def get_real_values(self, ids=None, random_state=None, seed=None):
+    def get_real_values(self, ids=None):
+        # , random_state=None, seed=None
         """Returns the real dataset response values, with any transformations undone, as an (ncmpds, ntasks) array
         with compounds in the same ID order as in the return from get_pred_values().
 
@@ -2049,7 +2089,8 @@ class SimpleHybridPerfData(HybridPerfData):
 
     # ****************************************************************************************
     # class SimpleHybridPerfData
-    def get_weights(self, ids=None, random_state=None, seed=None):
+    def get_weights(self, ids=None):
+        # , random_state=None, seed=None
         """Returns the dataset response weights as an (ncmpds, ntasks) array
 
         Args:
@@ -2064,7 +2105,8 @@ class SimpleHybridPerfData(HybridPerfData):
 
     # ****************************************************************************************
     # class SimpleHybridPerfData
-    def compute_perf_metrics(self, per_task=False, random_state=None, seed=None):
+    def compute_perf_metrics(self, per_task=False):
+        # , random_state=None, seed=None
         """Returns the R-squared metrics for each task or averaged over tasks based on the accumulated values
 
         Args:
@@ -2114,7 +2156,8 @@ class EpochManager:
     # ****************************************************************************************
     # class EpochManager
     def __init__(self, wrapper,
-            subsets={'train':'train',  'valid':'valid', 'test':'test'}, production=False, random_state=None, seed=None, **kwargs):
+            subsets={'train':'train',  'valid':'valid', 'test':'test'}, production=False, **kwargs):
+        # , random_state=None, seed=None
         """Initialize EpochManager
 
         Args:
@@ -2156,8 +2199,8 @@ class EpochManager:
         
         self._new_best_valid_score = lambda: False
 
-        self.random_state = random_state
-        self.seed = seed
+        #self.random_state = random_state
+        #self.seed = seed
         
         self.wrapper.best_epoch = 0
         self.wrapper.best_valid_score = None
@@ -2176,13 +2219,12 @@ class EpochManager:
         self.wrapper.test_perf_data = []
 
         for _ in range(params.max_epochs):
-            print("epochmanager, creating training, valid, and perf data for epochs")
             self.wrapper.train_perf_data.append(
-                create_perf_data(subset=self._subsets['train'], random_state=random_state, seed=seed, **kwargs))
+                create_perf_data(subset=self._subsets['train'], **kwargs)) # random_state=random_state, seed=seed,
             self.wrapper.valid_perf_data.append(
-                create_perf_data(subset=self._subsets['valid'], random_state=random_state, seed=seed, **kwargs))
+                create_perf_data(subset=self._subsets['valid'], **kwargs)) # random_state=random_state, seed=seed,
             self.wrapper.test_perf_data.append(
-                create_perf_data(subset=self._subsets['test'], random_state=random_state, seed=seed, **kwargs))
+                create_perf_data(subset=self._subsets['test'], **kwargs)) # random_state=random_state, seed=seed,
 
     # ****************************************************************************************
     # class EpochManager
@@ -2196,7 +2238,8 @@ class EpochManager:
 
     # ****************************************************************************************
     # class EpochManager
-    def update_epoch(self, ei, train_dset=None, valid_dset=None, test_dset=None, random_state=None, seed=None):
+    def update_epoch(self, ei, train_dset=None, valid_dset=None, test_dset=None):
+        # , random_state=None, seed=None
         """Update training state after an epoch
 
                 This function updates train/valid/test_perf_data. Call this function once
@@ -2222,13 +2265,14 @@ class EpochManager:
            This function updates self._should_stop
 
         """
-        train_perf = self.update(ei, 'train', train_dset, random_state=random_state, seed=seed)
-        valid_perf = self.update(ei, 'valid', valid_dset, random_state=random_state, seed=seed)
-        test_perf = self.update(ei, 'test', test_dset, random_state=random_state, seed=seed)
+        train_perf = self.update(ei, 'train', train_dset) # , random_state=random_state, seed=seed
+        valid_perf = self.update(ei, 'valid', valid_dset) # , random_state=random_state, seed=seed
+        test_perf = self.update(ei, 'test', test_dset) # , random_state=random_state, seed=seed
         return [p for p in [train_perf, valid_perf, test_perf] if not(p is None)]
     # ****************************************************************************************
     # class EpochManager
-    def accumulate(self, ei, subset, dset, random_state=None, seed=None):
+    def accumulate(self, ei, subset, dset):
+        #  random_state=None, seed=None
         """Accumulate predictions
 
                 Makes predictions, accumulate predictions and calculate the performance metric. Calls PerfData.accumulate_preds
@@ -2245,12 +2289,13 @@ class EpochManager:
            float: Performance metric for the given dset.
         """
         pred = self._make_pred(dset)
-        perf = getattr(self.wrapper, f'{subset}_perf_data')[ei].accumulate_preds(pred, dset.ids, random_state=random_state, seed=seed)
+        perf = getattr(self.wrapper, f'{subset}_perf_data')[ei].accumulate_preds(pred, dset.ids) # , random_state=random_state, seed=seed
         return perf
 
     # ****************************************************************************************
     # class EpochManager
-    def compute(self, ei, subset, random_state=None, seed=None):
+    def compute(self, ei, subset):
+        # , random_state=None, seed=None
         """Computes performance metrics
 
                 This calls PerfData.compute_perf_metrics and saves the result in
@@ -2266,10 +2311,11 @@ class EpochManager:
 
         """
         getattr(self.wrapper, f'{subset}_epoch_perfs')[ei], _ = \
-            getattr(self.wrapper, f'{subset}_perf_data')[ei].compute_perf_metrics(random_state=random_state, seed=seed)
+            getattr(self.wrapper, f'{subset}_perf_data')[ei].compute_perf_metrics() # random_state=random_state, seed=seed
     # ****************************************************************************************
     # class EpochManager
-    def update_valid(self, ei, random_state=None, seed=None):
+    def update_valid(self, ei):
+        # , random_state=None, seed=None
         """Checks validation score
 
                 Checks validation performance of the given epoch index. Updates self._should_stop, checks
@@ -2284,7 +2330,7 @@ class EpochManager:
         Side effects:
            Updates self._should_stop when it's time to exit the training loop.
         """
-        valid_score = self.wrapper.valid_perf_data[ei].model_choice_score(self._model_choice_score_type, random_state=random_state, seed=seed)
+        valid_score = self.wrapper.valid_perf_data[ei].model_choice_score(self._model_choice_score_type) # , random_state=random_state, seed=seed
         self.wrapper.model_choice_scores[ei] = valid_score
         if self.wrapper.best_valid_score is None or self.production:
             # If we're in production mode, every epoch is the new best epoch
@@ -2303,7 +2349,8 @@ class EpochManager:
 
     # ****************************************************************************************
     # class EpochManager
-    def update(self, ei, subset, dset=None, random_state=None, seed=None):
+    def update(self, ei, subset, dset=None): 
+        # , random_state=None, seed=None
         """Update training state
 
                 Updates the training state for a given subset and epoch index with the given dataset.
@@ -2325,30 +2372,15 @@ class EpochManager:
         perf = self.accumulate(ei, subset, dset)
         self.compute(ei, subset)
 
-        """
-        perf = self.accumulate(ei, subset, dset, random_state=random_state, seed=seed)
-        self.compute(ei, subset, random_state=random_state, seed=seed)        
-        self.wrapper.train_perf_data = []
-        self.wrapper.valid_perf_data = []
-        self.wrapper.test_perf_data = []
-
-        for _ in range(params.max_epochs):
-            print("epochmanager, creating training, valid, and perf data for epochs")
-            self.wrapper.train_perf_data.append(
-                create_perf_data(subset=self._subsets['train'], random_state=random_state, seed=seed, **kwargs))
-            self.wrapper.valid_perf_data.append(
-                create_perf_data(subset=self._subsets['valid'], random_state=random_state, seed=seed, **kwargs))
-            self.wrapper.test_perf_data.append(
-                create_perf_data(subset=self._subsets['test'], random_state=random_state, seed=seed, **kwargs))
-        """
         if subset == 'valid':
-            self.update_valid(ei, random_state=random_state, seed=seed)
+            self.update_valid(ei) # , random_state=random_state, seed=seed
 
         return perf
 
     # ****************************************************************************************
     # class EpochManager
-    def set_make_pred(self, functional, random_state=None, seed=None):
+    def set_make_pred(self, functional):
+        # , random_state=None, seed=None
         """Sets the function used to make predictions
 
         Sets the function used to make predictions. This must be called before invoking
@@ -2365,12 +2397,12 @@ class EpochManager:
         Side effects:
            Saves the functional as self._make_pred
         """
-        print("(epoch_manager) making the prediction")
         self._make_pred = functional
 
     # ****************************************************************************************
     # class EpochManager
-    def on_new_best_valid(self, functional, random_state=None, seed=None):
+    def on_new_best_valid(self, functional):
+        # , random_state=None, seed=None
         """Sets the function called when a new best validation score is achieved
 
                 Saves the function called when there's a new best validation score.
@@ -2396,7 +2428,8 @@ class EpochManagerKFold(EpochManager):
     """
     # ****************************************************************************************
     # class EpochManagerKFold
-    def compute(self, ei, subset, random_state=None, seed=None):
+    def compute(self, ei, subset):
+        # , random_state=None, seed=None
         """Calls PerfData.compute_perf_metrics()
 
         This differs from EpochManager.compute in that it saves the results into
@@ -2412,4 +2445,4 @@ class EpochManagerKFold(EpochManager):
 
         """
         getattr(self.wrapper, f'{subset}_epoch_perfs')[ei], getattr(self.wrapper, f'{subset}_epoch_perf_stds')[ei]= \
-            getattr(self.wrapper, f'{subset}_perf_data')[ei].compute_perf_metrics(random_state=random_state, seed=seed)
+            getattr(self.wrapper, f'{subset}_perf_data')[ei].compute_perf_metrics() # random_state=random_state, seed=seed

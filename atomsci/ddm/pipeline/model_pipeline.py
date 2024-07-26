@@ -199,7 +199,9 @@ class ModelPipeline:
             self.random_gen = rs.RandomStateGenerator(params, seed)
             self.seed = self.random_gen.get_seed()
         else:
-            self.seed = seed
+            # pass the seed into the randomStateGenerator
+            self.random_gen = rs.RandomStateGenerator(seed)
+            self.seed = self.random_gen.get_seed()
         
         if random_state is None:
             self.random_state = self.random_gen.get_random_state()
@@ -277,8 +279,8 @@ class ModelPipeline:
         if params is None:
             params = self.params
         
-        self.data = model_datasets.create_model_dataset(params, self.featurization, self.ds_client, random_state=self.random_state, seed=self.seed) 
-        self.data.get_featurized_data(params, random_state=self.random_state, seed=self.seed)
+        self.data = model_datasets.create_model_dataset(params, self.featurization, self.ds_client) # , random_state=self.random_state, seed=self.seed 
+        self.data.get_featurized_data(params) # , random_state=self.random_state, seed=self.seed
 
         if self.run_mode == 'training':
             # Ignore previously split if in production mode
@@ -287,17 +289,20 @@ class ModelPipeline:
                 self.log.info('Training in production mode. Ignoring '
                     'previous split and creating production split. '
                     'Production split will not be saved.')
-                self.data.split_dataset(random_state=self.random_state, seed=self.seed)
+                self.data.split_dataset(random_state=self.random_state, seed=self.seed) # pass in seed 
             elif not (params.previously_split and self.data.load_presplit_dataset(random_state=self.random_state, seed=self.seed)):
                 self.data.split_dataset(random_state=self.random_state, seed=self.seed)
                 self.data.save_split_dataset()
+                # write the metadata 
+                self.create_split_metadata()
+                self.save_split_metadata()
             if self.data.params.prediction_type == 'classification':
                 self.data._validate_classification_dataset()
         # We now create transformers after splitting, to allow for the case where the transformer
         # is fitted to the training data only. The transformers are then applied to the training,
         # validation and test sets separately.
         if not params.split_only:
-            self.model_wrapper.create_transformers(self.data, random_state=self.random_state, seed=self.seed) 
+            self.model_wrapper.create_transformers(self.data)
         else:
             self.run_mode = ''
 
@@ -305,10 +310,10 @@ class ModelPipeline:
             for i, (train, valid) in enumerate(self.data.train_valid_dsets):
                 if self.data.params.prediction_type == 'classification' and self.params.sampling_method is not None:
                     train = sample.apply_sampling_method(train, params, random_state=self.random_state, seed=self.seed)
-                train = self.model_wrapper.transform_dataset(train, random_state=self.random_state, seed=self.seed)
-                valid = self.model_wrapper.transform_dataset(valid, random_state=self.random_state, seed=self.seed)
+                train = self.model_wrapper.transform_dataset(train)
+                valid = self.model_wrapper.transform_dataset(valid)
                 self.data.train_valid_dsets[i] = (train, valid)
-            self.data.test_dset = self.model_wrapper.transform_dataset(self.data.test_dset, random_state=self.random_state, seed=self.seed)
+            self.data.test_dset = self.model_wrapper.transform_dataset(self.data.test_dset)
         # ****************************************************************************************
 
     def create_model_metadata(self):
@@ -445,6 +450,27 @@ class ModelPipeline:
             # If not using the model tracker, save the model state and metadata in a tarball in the filesystem
             trkr.save_model_tarball(self.output_dir, self.params.model_tarball_path)
         self.model_wrapper._clean_up_excess_files(self.model_wrapper.model_dir)
+   # ****************************************************************************************
+    def create_split_metadata(self):
+        """Creates metadata for each split dataset. 
+        It will save the seed used to create the split dataset and relevant parameters."""
+        self.split_data = dict(
+            dataset_key = self.params.dataset_key,
+            id_col = self.params.id_col, 
+            smiles_col = self.params.smiles_col, 
+            response_cols = self.params.response_cols,
+            seed = self.seed
+        )
+        self.splitting_metadata = self.data.get_split_metadata() 
+        self.split_data['splitting_metadata'] = self.splitting_metadata
+
+    # ****************************************************************************************
+    def save_split_metadata(self):
+        out_file = os.path.join(self.output_dir, 'split_metadata.json')
+ 
+        with open(out_file, 'w') as out:
+            json.dump(self.split_data, out, sort_keys=True, indent=4, separators=(',', ': '))
+            out.write("\n")
 
     # ****************************************************************************************
     def create_prediction_metadata(self, prediction_results):
@@ -564,11 +590,9 @@ class ModelPipeline:
         self.run_mode = 'training'
         self.params.split_only = True
         self.params.previously_split = False
-        #random_state=self.random_gen.get_random_state()
-        #seed = self.random_gen.get_seed()
 
         if featurization is None:
-            featurization = feat.create_featurization(self.params, random_state=self.random_state, seed=self.seed)
+            featurization = feat.create_featurization(self.params) # , random_state=self.random_state, seed=self.seed
         self.featurization = featurization
         self.load_featurize_data(random_state=self.random_state, seed=self.seed)
         return self.data.split_uuid
@@ -597,16 +621,7 @@ class ModelPipeline:
 
                 model_metadata (dict): The model metadata dictionary that stores the model metrics and metadata
         """
-        #if random_state is None:
-        #    random_state = self.random_gen.get_random_state()
-        #else:
-        #    random_state=random_state
-        #if seed is None:
-        #    seed = self.random_gen.get_seed()
-        #else:
-        #    seed = seed
 
-        
         self.run_mode = 'training'
         if self.params.model_type == "hybrid":
             if self.params.featurizer in ["graphconv"]:
@@ -614,7 +629,7 @@ class ModelPipeline:
             if len(self.params.response_cols) < 2:
                 raise Exception("The dataset of a hybrid model should have two response columns, one for activities, one for concentrations.")
         if featurization is None:
-            featurization = feat.create_featurization(self.params, random_state=self.random_state, seed=self.seed)
+            featurization = feat.create_featurization(self.params) # , random_state=self.random_state, seed=self.seed
         self.featurization = featurization
 
         ## create model wrapper if not split_only
@@ -676,12 +691,9 @@ class ModelPipeline:
         """
 
         self.run_mode = 'prediction'
-        # Set seed 
-        #random_state = self.random_gen.get_random_state()
-        #seed = self.random_gen.get_seed()
 
         if featurization is None:
-            featurization = feat.create_featurization(self.params, random_state=self.random_state, seed=self.seed)
+            featurization = feat.create_featurization(self.params) # , random_state=self.random_state, seed=self.seed
         self.featurization = featurization
         # Load the dataset to run predictions on and featurize it
         self.load_featurize_data(random_state=random_state, seed=seed)
@@ -703,11 +715,11 @@ class ModelPipeline:
         self.save_metrics(model_metrics, 'prediction_%s' % self.params.dataset_name)
 
     # ****************************************************************************************
-    def calc_train_dset_pair_dis(self, metric="euclidean", random_state=None, seed=None):
+    def calc_train_dset_pair_dis(self, metric="euclidean"):
         """Calculate the pairwise distance for training set compound feature vectors, needed for AD calculation."""
         
         self.featurization = self.model_wrapper.featurization
-        self.load_featurize_data(random_state=self.random_state, seed=self.seed)
+        self.load_featurize_data()
         if len(self.data.train_valid_dsets) > 1:
             # combine train and valid set for k-fold cv models
             train_data = np.concatenate((self.data.train_valid_dsets[0][0].X, self.data.train_valid_dsets[0][1].X))
@@ -748,7 +760,7 @@ class ModelPipeline:
         return result_df
 
     # ****************************************************************************************
-    def predict_on_smiles(self, smiles, verbose=False, AD_method=None, k=5, dist_metric="euclidean", random_state=None, seed=None):
+    def predict_on_smiles(self, smiles, verbose=False, AD_method=None, k=5, dist_metric="euclidean"):
         """Compute predicted responses from a pretrained model on a set of compounds given as a list of SMILES strings.
 
         Args:
@@ -791,7 +803,7 @@ class ModelPipeline:
         df = pd.DataFrame({'compound_id': np.linspace(0, len(smiles) - 1, len(smiles), dtype=int),
                         self.params.smiles_col: smiles,
                         task: np.zeros(len(smiles))})
-        res = self.predict_on_dataframe(df, AD_method=AD_method, k=k, dist_metric=dist_metric, random_state=self.random_state, seed=self.seed)
+        res = self.predict_on_dataframe(df, AD_method=AD_method, k=k, dist_metric=dist_metric)
 
         sys.stdout = sys.__stdout__
 
@@ -878,7 +890,7 @@ class ModelPipeline:
         # Get features for each compound and construct a DeepChem Dataset from them
         self.data.get_featurized_data(dset_df, is_featurized, random_state=random_state, seed=seed)
         # Transform the features and responses if needed
-        self.data.dataset = self.model_wrapper.transform_dataset(self.data.dataset, random_state=self.random_state, seed=self.seed)
+        self.data.dataset = self.model_wrapper.transform_dataset(self.data.dataset)
 
         # Note that at this point, the dataset may contain fewer rows than the input. Typically this happens because
         # of invalid SMILES strings. Remove any rows from the input dataframe corresponding to SMILES strings that were
@@ -1087,7 +1099,7 @@ def run_models(params, shared_featurization=None, generator=False):
 
         # If there is no shared featurization object, create one for this model
         if shared_featurization is None:
-            featurization = feat.create_featurization(model_params)
+            featurization = feat.create_featurization(model_params, random_state=self.random_state, seed=self.seed)
         else:
             featurization = shared_featurization
 
@@ -1294,15 +1306,15 @@ def create_prediction_pipeline(params, model_uuid, collection_name=None, featuri
 
     # If the caller didn't provide a featurization object, create one for this model
     if featurization is None:
-        featurization = feat.create_featurization(model_params, random_state=self.random_state, seed=self.seed)
+        featurization = feat.create_featurization(model_params) #  random_state=random_state, seed=seed
 
     # Create a ModelPipeline object
-    pipeline = ModelPipeline(model_params, ds_client, mlmt_client, random_state=self.random_state, seed=self.seed)
+    pipeline = ModelPipeline(model_params, ds_client, mlmt_client, random_state=random_state, seed=seed)
     pipeline.orig_params = orig_params
 
     # Create the ModelWrapper object.
     pipeline.model_wrapper = model_wrapper.create_model_wrapper(pipeline.params, featurization,
-                                                                pipeline.ds_client, random_state=self.random_state, seed=self.seed)
+                                                                pipeline.ds_client, random_state=random_state, seed=seed)
 
     if params.verbose:
         pipeline.log.setLevel(logging.DEBUG)
@@ -1410,7 +1422,7 @@ def create_prediction_pipeline_from_file(params, reload_dir, model_path=None, mo
 
     # If the caller didn't provide a featurization object, create one for this model
     if featurization is None:
-        featurization = feat.create_featurization(model_params, random_state=self.random_state, seed=self.seed)
+        featurization = feat.create_featurization(model_params) # , random_state=self.random_state, seed=self.seed
 
     log.info("Featurization = %s" % str(featurization))
     # Create a ModelPipeline object
@@ -1418,7 +1430,7 @@ def create_prediction_pipeline_from_file(params, reload_dir, model_path=None, mo
     pipeline.orig_params = orig_params
 
     # Create the ModelWrapper object.
-    pipeline.model_wrapper = model_wrapper.create_model_wrapper(pipeline.params, featurization, random_state=self.random_state, seed=self.seed)
+    pipeline.model_wrapper = model_wrapper.create_model_wrapper(pipeline.params, featurization, random_state=random_state, seed=seed)
 
     if verbose:
         pipeline.log.setLevel(logging.DEBUG)
@@ -1429,7 +1441,7 @@ def create_prediction_pipeline_from_file(params, reload_dir, model_path=None, mo
     model_dir = os.path.join(reload_dir, model_type)
 
     # If that worked, reload the saved model training state
-    pipeline.model_wrapper.reload_model(model_dir, random_state=self.random_state, seed=self.seed)
+    pipeline.model_wrapper.reload_model(model_dir, random_state=random_state, seed=seed)
 
     return pipeline
 
@@ -1562,7 +1574,7 @@ def ensemble_predict(model_uuids, collections, dset_df, labels=None, dset_params
             model_pparams.smiles_col = dset_params.smiles_col
             if contains_responses:
                 model_pparams.response_cols = dset_params.response_cols
-        pipe = create_prediction_pipeline(model_pparams, model_uuid, collection_name, random_state=self.random_state, seed=self.seed)
+        pipe = create_prediction_pipeline(model_pparams, model_uuid, collection_name, random_state=random_state, seed=seed)
 
         if pred_df is None:
             initial_cols = [model_pparams.id_col, model_pparams.smiles_col]
@@ -1575,14 +1587,15 @@ def ensemble_predict(model_uuids, collections, dset_df, labels=None, dset_params
 
         pipe.run_mode = 'prediction'
         pipe.featurization = pipe.model_wrapper.featurization
-        pipe.data = model_datasets.create_minimal_dataset(pipe.params, pipe.featurization, contains_responses, random_state=self.random_state, seed=self.seed)
+        pipe.data = model_datasets.create_minimal_dataset(pipe.params, pipe.featurization, contains_responses,
+                                                          random_state=random_state, seed=seed)
 
         if not pipe.data.get_dataset_tasks(dset_df):
             # Shouldn't happen - response_cols should already be set in saved model parameters
             raise Exception("response_cols missing from model params")
         is_featurized = (len(set(pipe.featurization.get_feature_columns()) - set(dset_df.columns.values)) == 0)
         pipe.data.get_featurized_data(dset_df, is_featurized, random_state=random_state, seed=seed)
-        pipe.data.dataset = pipe.model_wrapper.transform_dataset(pipe.data.dataset, random_state=self.random_state, seed=self.seed)
+        pipe.data.dataset = pipe.model_wrapper.transform_dataset(pipe.data.dataset, random_state=random_state, seed=seed)
 
         # Create a temporary data frame to hold the compound IDs and predictions. The model may not
         # return predictions for all the requested compounds, so we have to outer join the predictions
@@ -1591,7 +1604,7 @@ def ensemble_predict(model_uuids, collections, dset_df, labels=None, dset_params
 
         # Get the predictions and standard deviations, if calculated, as numpy arrays
         try:
-            preds, stds = pipe.model_wrapper.generate_predictions(pipe.data.dataset, random_state=self.random_state, seed=self.seed)
+            preds, stds = pipe.model_wrapper.generate_predictions(pipe.data.dataset, random_state=random_state, seed=seed)
         except ValueError:
             log.error("\n***** Prediction failed for model %s %s\n" % (label, model_uuid))
             continue

@@ -173,7 +173,8 @@ def all_bases(model):
     return result
 
 # ****************************************************************************************
-def create_model_wrapper(params, featurizer, ds_client=None, random_state=None, seed=None):
+def create_model_wrapper(params, featurizer, ds_client=None):
+    # , random_state=None, seed=None
     """Factory function for creating Model objects of the correct subclass for params.model_type.
 
     Args:
@@ -183,8 +184,6 @@ def create_model_wrapper(params, featurizer, ds_client=None, random_state=None, 
 
         ds_client (DatastoreClient): Interface to the file datastore
         
-        random_gen (RandomStateGenerator): Instance managing random state and seed
-
     Returns:
         model (pipeline.Model): Wrapper for DeepChem, sklearn or other model.
 
@@ -194,11 +193,11 @@ def create_model_wrapper(params, featurizer, ds_client=None, random_state=None, 
     
     if params.model_type == 'NN':
         if params.featurizer == 'graphconv':
-            return GraphConvDCModelWrapper(params, featurizer, ds_client, random_state=random_state, seed=seed)
+            return GraphConvDCModelWrapper(params, featurizer, ds_client) # , random_state=random_state, seed=seed
         else:
-            return MultitaskDCModelWrapper(params, featurizer, ds_client, random_state=random_state, seed=seed)
+            return MultitaskDCModelWrapper(params, featurizer, ds_client) # , random_state=random_state, seed=seed
     elif params.model_type == 'RF':
-        return DCRFModelWrapper(params, featurizer, ds_client, random_state=random_state, seed=seed)
+        return DCRFModelWrapper(params, featurizer, ds_client) # , random_state=random_state, seed=seed
     elif params.model_type == 'xgboost':
         if not xgboost_supported:
             raise Exception("Unable to import xgboost. \
@@ -214,9 +213,9 @@ def create_model_wrapper(params, featurizer, ds_client=None, random_state=None, 
                              installation: \
                              from pip: pip install xgboost==0.90")
         else:
-            return DCxgboostModelWrapper(params, featurizer, ds_client, random_state=random_state, seed=seed)
+            return DCxgboostModelWrapper(params, featurizer, ds_client) #, random_state=random_state, seed=seed
     elif params.model_type == 'hybrid':
-        return HybridModelWrapper(params, featurizer, ds_client, random_state=random_state, seed=seed)
+        return HybridModelWrapper(params, featurizer, ds_client) # , random_state=random_state, seed=seed
     elif params.model_type in pp.model_wl:
         requested_model = pp.model_wl[params.model_type]
         bases = all_bases(requested_model)
@@ -225,9 +224,9 @@ def create_model_wrapper(params, featurizer, ds_client=None, random_state=None, 
         if any(['TorchModel' in str(b) for b in bases]):
             if not afp_supported:
                 raise Exception("dgl and dgllife packages must be installed to use attentive_fp model.")
-            return PytorchDeepChemModelWrapper(params, featurizer, ds_client, random_state=random_state, seed=seed)
+            return PytorchDeepChemModelWrapper(params, featurizer, ds_client) # , random_state=random_state, seed=seed
         elif any(['KerasModel' in str(b) for b in bases]):
-            return KerasDeepChemModelWrapper(params, featurizer, ds_client, random_state=random_state, seed=seed)
+            return KerasDeepChemModelWrapper(params, featurizer, ds_client) # , random_state=random_state, seed=seed
     else:
         raise ValueError("Unknown model_type %s" % params.model_type)
 
@@ -257,7 +256,8 @@ class ModelWrapper(object):
             best_model_dir (str): The subdirectory under output_dir that contains the best model. Created in setup_model_dirs
 
     """
-    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
+    def __init__(self, params, featurizer, ds_client):
+        # , random_state=None, seed=None
         """Initializes ModelWrapper object.
 
         Args:
@@ -294,8 +294,8 @@ class ModelWrapper(object):
         self.transformers = []
         self.transformers_x = []
         self.transformers_w = []
-        self.random_state = random_state
-        self.seed = seed
+        #self.random_state = random_state
+        #self.seed = seed
 
         # ****************************************************************************************
 
@@ -311,7 +311,8 @@ class ModelWrapper(object):
 
         # ****************************************************************************************
 
-    def train(self, pipeline, random_state=None, seed=None):
+    def train(self, pipeline):
+        # , random_state=None, seed=None
         """Trains a model (for multiple epochs if applicable), and saves the tuned model.
 
         Args:
@@ -334,7 +335,7 @@ class ModelWrapper(object):
         raise NotImplementedError
 
         # ****************************************************************************************
-    def _create_output_transformers(self, model_dataset, random_state=None, seed=None):
+    def _create_output_transformers(self, model_dataset):
         """Initialize transformers for responses and persist them for later.
 
         Args:
@@ -346,11 +347,10 @@ class ModelWrapper(object):
         """
         # TODO: Just a warning, we may have response transformers for classification datasets in the future
         if self.params.prediction_type=='regression' and self.params.transformers==True:
-            self.transformers = [trans.NormalizationTransformerMissingData(transform_y=True, dataset=model_dataset.dataset, random_state=self.random_state, seed=self.seed)]
-
+            self.transformers = [trans.NormalizationTransformerMissingData(transform_y=True, dataset=model_dataset.dataset)]
         # ****************************************************************************************
 
-    def _create_feature_transformers(self, model_dataset, random_state=None, seed=None):
+    def _create_feature_transformers(self, model_dataset):
         """Initialize transformers for features, and persist them for later.
 
         Args:
@@ -361,11 +361,11 @@ class ModelWrapper(object):
                 transformers_x: A list of deepchem transformation objects on featurizers, only if conditions are met.
         """
         # Set up transformers for features, if needed
-        self.transformers_x = trans.create_feature_transformers(self.params, model_dataset, random_state=self.random_state, seed=self.seed)
+        self.transformers_x = trans.create_feature_transformers(self.params, model_dataset)
 
         # ****************************************************************************************
 
-    def create_transformers(self, model_dataset, random_state=None, seed=None):
+    def create_transformers(self, model_dataset):
         """Initialize transformers for responses, features and weights, and persist them for later.
 
         Args:
@@ -381,15 +381,14 @@ class ModelWrapper(object):
                 transformers_w: A list of deepchem transformation objects on weights, only if conditions are met.
 
                 params.transformer_key: A string pointing to the dataset key containing the transformer in the datastore, or the path to the transformer
-
         """
         
-        self._create_output_transformers(model_dataset, random_state=self.random_state, seed=self.seed)
+        self._create_output_transformers(model_dataset)
 
-        self._create_feature_transformers(model_dataset, random_state=self.random_state, seed=self.seed)
+        self._create_feature_transformers(model_dataset)
 
         # Set up transformers for weights, if needed
-        self.transformers_w = trans.create_weight_transformers(self.params, model_dataset, random_state=self.random_state, seed=self.seed)
+        self.transformers_w = trans.create_weight_transformers(self.params, model_dataset)
 
         if len(self.transformers) + len(self.transformers_x) + len(self.transformers_w) > 0:
 
@@ -403,7 +402,8 @@ class ModelWrapper(object):
 
         # ****************************************************************************************
 
-    def reload_transformers(self, random_state=None, seed=None):
+    def reload_transformers(self):
+        # , random_state=None, seed=None
         """Load response, feature and weight transformers from datastore objects or files. Before AMPL v1.2 these
         were persisted as separate datastore objects when the model tracker was used; subsequently they
         are included in model tarballs, which should have been unpacked before this function gets called.
@@ -442,7 +442,7 @@ class ModelWrapper(object):
 
         # ****************************************************************************************
 
-    def transform_dataset(self, dataset, random_state=None, seed=None):
+    def transform_dataset(self, dataset):
         """Transform the responses and/or features in the given DeepChem dataset using the current transformers.
 
         Args:
@@ -451,20 +451,22 @@ class ModelWrapper(object):
         Returns:
             transformed_dataset: The transformed DeepChem DiskDataset
 
+        removed: , random_state=None, seed=None
+        
         """
         transformed_dataset = dataset
         if len(self.transformers) > 0:
             self.log.info("Transforming response data")
             for transformer in self.transformers:
-                transformed_dataset = transformer.transform(transformed_dataset, random_state=self.random_state, seed=self.seed)
+                transformed_dataset = transformer.transform(transformed_dataset)
         if len(self.transformers_x) > 0:
             self.log.info("Transforming feature data")
             for transformer in self.transformers_x:
-                transformed_dataset = transformer.transform(transformed_dataset, random_state=self.random_state, seed=self.seed)
+                transformed_dataset = transformer.transform(transformed_dataset)
         if len(self.transformers_w) > 0:
             self.log.info("Transforming weights")
             for transformer in self.transformers_w:
-                transformed_dataset = transformer.transform(transformed_dataset, random_state=self.random_state, seed=self.seed)
+                transformed_dataset = transformer.transform(transformed_dataset)
 
         return transformed_dataset
         # ****************************************************************************************
@@ -483,7 +485,8 @@ class ModelWrapper(object):
 
         # ****************************************************************************************
 
-    def get_train_valid_pred_results(self, perf_data, random_state=None, seed=None):
+    def get_train_valid_pred_results(self, perf_data):
+        # , random_state=None, seed=None
         """Returns predicted values and metrics for the training, validation or test set
         associated with the PerfData object perf_data. Results are returned as a dictionary
         of parameter, value pairs in the format expected by the model tracker.
@@ -496,10 +499,11 @@ class ModelWrapper(object):
 
         """
         # look at get_pred_vals perf_data
-        return perf_data.get_prediction_results(random_state=self.random_state, seed=self.seed)
+        return perf_data.get_prediction_results() #random_state=self.random_state, seed=self.seed
 
         # ****************************************************************************************
-    def get_test_perf_data(self, model_dir, model_dataset, random_state=None, seed=None):
+    def get_test_perf_data(self, model_dir, model_dataset):
+        # , random_state=None, seed=None
         """Returns the predicted values and metrics for the current test dataset against
         the version of the model stored in model_dir, as a PerfData object.
 
@@ -511,7 +515,7 @@ class ModelWrapper(object):
             perf_data: PerfData object containing the predicted values and metrics for the current test dataset
         """
         # Load the saved model from model_dir
-        self.reload_model(model_dir, random_state=self.random_state, seed=self.seed)
+        self.reload_model(model_dir) # , random_state=self.random_state, seed=self.seed
 
         # Create a PerfData object, which knows how to format the prediction results in the structure
         # expected by the model tracker.
@@ -521,16 +525,18 @@ class ModelWrapper(object):
         # doesn't untransform them again.
         if hasattr(self.transformers[0], "ishybrid"):
             # indicate that we are training a hybrid model
-            perf_data = perf.create_perf_data("hybrid", model_dataset, self.transformers, 'test', is_ki=self.params.is_ki, ki_convert_ratio=self.params.ki_convert_ratio, transformed=False, random_state=self.random_state, seed=self.seed)
+            perf_data = perf.create_perf_data("hybrid", model_dataset, self.transformers, 'test', is_ki=self.params.is_ki, ki_convert_ratio=self.params.ki_convert_ratio, transformed=False) # , random_state=self.random_state, seed=self.seed
         else:
-            perf_data = perf.create_perf_data(self.params.prediction_type, model_dataset, self.transformers, 'test', transformed=False, random_state=self.random_state, seed=self.seed)
+            perf_data = perf.create_perf_data(self.params.prediction_type, model_dataset, self.transformers, 'test', transformed=False) 
+            #random_state=self.random_state, seed=self.seed
         test_dset = model_dataset.test_dset
-        test_preds, test_stds = self.generate_predictions(test_dset, random_state=self.random_state, seed=self.seed)
+        test_preds, test_stds = self.generate_predictions(test_dset) #, random_state=self.random_state, seed=self.seed
         _ = perf_data.accumulate_preds(test_preds, test_dset.ids, test_stds)
         return perf_data
 
         # ****************************************************************************************
-    def get_test_pred_results(self, model_dir, model_dataset, random_state=None, seed=None):
+    def get_test_pred_results(self, model_dir, model_dataset):
+        # , random_state=None, seed=None
         """Returns predicted values and metrics for the current test dataset against the version
         of the model stored in model_dir, as a dictionary in the format expected by the model tracker.
 
@@ -541,11 +547,12 @@ class ModelWrapper(object):
         Returns:
             dict: A dictionary containing the prediction values and metrics for the current dataset.
         """
-        perf_data = self.get_test_perf_data(model_dir, model_dataset, random_state=self.random_state, seed=self.seed)
-        return perf_data.get_prediction_results(random_state=self.random_state, seed=self.seed)
+        perf_data = self.get_test_perf_data(model_dir, model_dataset) # , random_state=self.random_state, seed=self.seed
+        return perf_data.get_prediction_results() # random_state=self.random_state, seed=self.seed
 
         # ****************************************************************************************
-    def get_full_dataset_perf_data(self, model_dataset, random_state=None, seed=None):
+    def get_full_dataset_perf_data(self, model_dataset):
+        #, random_state=None, seed=None
         """Returns the predicted values and metrics from the current model for the full current dataset,
         as a PerfData object.
 
@@ -564,15 +571,17 @@ class ModelWrapper(object):
         # doesn't untransform them again.
         if hasattr(self.transformers[0], "ishybrid"):
             # indicate that we are training a hybrid model
-            perf_data = perf.create_perf_data("hybrid", model_dataset, self.transformers, 'full', is_ki=self.params.is_ki, ki_convert_ratio=self.params.ki_convert_ratio, transformed=False, random_state=self.random_state, seed=self.seed)
+            perf_data = perf.create_perf_data("hybrid", model_dataset, self.transformers, 'full', is_ki=self.params.is_ki, ki_convert_ratio=self.params.ki_convert_ratio, transformed=False) # , random_state=self.random_state, seed=self.seed
         else:
-            perf_data = perf.create_perf_data(self.params.prediction_type, model_dataset, self.transformers, 'full', transformed=False, random_state=self.random_state, seed=self.seed)
-        full_preds, full_stds = self.generate_predictions(model_dataset.dataset, random_state=self.random_state, seed=self.seed)
-        _ = perf_data.accumulate_preds(full_preds, model_dataset.dataset.ids, full_stds, random_state=self.random_state, seed=self.seed)
+            perf_data = perf.create_perf_data(self.params.prediction_type, model_dataset, self.transformers, 'full', transformed=False) 
+            # random_state=self.random_state, seed=self.seed
+        full_preds, full_stds = self.generate_predictions(model_dataset.dataset) # random_state=self.random_state, seed=self.seed
+        _ = perf_data.accumulate_preds(full_preds, model_dataset.dataset.ids, full_stds)#, random_state=self.random_state, seed=self.seed
         return perf_data
 
         # ****************************************************************************************
-    def get_full_dataset_pred_results(self, model_dataset, random_state=None, seed=None):
+    def get_full_dataset_pred_results(self, model_dataset):
+        # , random_state=None, seed=None
         """Returns predicted values and metrics from the current model for the full current dataset,
         as a dictionary in the format expected by the model tracker.
 
@@ -584,10 +593,11 @@ class ModelWrapper(object):
 
         """
         self.data = model_dataset
-        perf_data = self.get_full_dataset_perf_data(model_dataset, random_state=self.random_state, seed=self.seed)
-        return perf_data.get_prediction_results(random_state=self.random_state, seed=self.seed)
+        perf_data = self.get_full_dataset_perf_data(model_dataset) #, random_state=self.random_state, seed=self.seed
+        return perf_data.get_prediction_results() # random_state=self.random_state, seed=self.seed
 
-    def generate_predictions(self, dataset, random_state=None, seed=None):
+    def generate_predictions(self, dataset):
+        # , random_state=None, seed=None
         """Generate predictions,.
 
         Args:
@@ -599,7 +609,8 @@ class ModelWrapper(object):
         """
         raise NotImplementedError
 
-    def generate_embeddings(self, dataset, random_state=None, seed=None):
+    def generate_embeddings(self, dataset):
+        # , random_state=None, seed=None
         """Generate embeddings.
 
         Args:
@@ -611,7 +622,8 @@ class ModelWrapper(object):
         """
         raise NotImplementedError
 
-    def reload_model(self, reload_dir, random_state=None, seed=None):
+    def reload_model(self, reload_dir):
+        # , random_state=None, seed=None
         """Args:
             reload_dir:
 
@@ -748,7 +760,8 @@ class NNModelWrapper(ModelWrapper):
     """
 
     # ****************************************************************************************
-    def get_perf_data(self, subset, epoch_label=None, random_state=None, seed=None):
+    def get_perf_data(self, subset, epoch_label=None):
+        # , random_state=None, seed=None
         """Returns predicted values and metrics from a training, validation or test subset
         of the current dataset, or the full dataset. subset may be 'train', 'valid', 'test' or 'full',
         epoch_label indicates the training epoch we want results for; currently the
@@ -769,7 +782,7 @@ class NNModelWrapper(ModelWrapper):
             ValueError: If subset not in ['train','valid','test','full']
         """
         if subset == 'full':
-            return self.get_full_dataset_perf_data(self.data, random_state=self.random_state, seed=self.seed)
+            return self.get_full_dataset_perf_data(self.data) # , random_state=self.random_state, seed=self.seed
         if epoch_label == 'best':
             epoch = self.best_epoch
             model_dir = self.best_model_dir
@@ -787,7 +800,8 @@ class NNModelWrapper(ModelWrapper):
             raise ValueError("Unknown dataset subset '%s'" % subset)
 
     # ****************************************************************************************
-    def get_pred_results(self, subset, epoch_label=None, random_state=None, seed=None):
+    def get_pred_results(self, subset, epoch_label=None):
+        #  random_state=None, seed=None
         """Returns predicted values and metrics from a training, validation or test subset
         of the current dataset, or the full dataset. subset may be 'train', 'valid', 'test'
         accordingly.  epoch_label indicates the training epoch we want results for; currently the
@@ -807,18 +821,18 @@ class NNModelWrapper(ModelWrapper):
             ValueError: If subset not in ['train','valid','test','full']
         """
         if subset == 'full':
-            return self.get_full_dataset_pred_results(self.data, random_state=self.random_state, seed=self.seed)
+            return self.get_full_dataset_pred_results(self.data) # , random_state=self.random_state, seed=self.seed
         if epoch_label == 'best':
             epoch = self.best_epoch
             model_dir = self.best_model_dir
         else:
             raise ValueError("Unknown epoch_label '%s'" % epoch_label)
         if subset == 'train':
-            return self.get_train_valid_pred_results(self.train_perf_data[epoch], random_state=self.random_state, seed=self.seed)
+            return self.get_train_valid_pred_results(self.train_perf_data[epoch]) # , random_state=self.random_state, seed=self.seed
         elif subset == 'valid':
-            return self.get_train_valid_pred_results(self.valid_perf_data[epoch], random_state=self.random_state, seed=self.seed)
+            return self.get_train_valid_pred_results(self.valid_perf_data[epoch]) #, random_state=self.random_state, seed=self.seed
         elif subset == 'test':
-            return self.get_train_valid_pred_results(self.test_perf_data[epoch], random_state=self.random_state, seed=self.seed)
+            return self.get_train_valid_pred_results(self.test_perf_data[epoch]) # , random_state=self.random_state, seed=self.seed
         else:
             raise ValueError("Unknown dataset subset '%s'" % subset)
 
@@ -832,7 +846,8 @@ class NNModelWrapper(ModelWrapper):
         os.mkdir(dest_dir)
 
     # ****************************************************************************************
-    def train(self, pipeline, random_state=None, seed=None):
+    def train(self, pipeline):
+        # , random_state=None, seed=None
         """Trains a neural net model for multiple epochs, choose the epoch with the best validation
         set performance, refits the model for that number of epochs, and saves the tuned model.
 
@@ -860,12 +875,13 @@ class NNModelWrapper(ModelWrapper):
         # TODO: Fix docstrings above
         num_folds = len(pipeline.data.train_valid_dsets)
         if num_folds > 1:
-            self.train_kfold_cv(pipeline, random_state=self.random_state, seed=self.seed)
+            self.train_kfold_cv(pipeline) # , random_state=self.random_state, seed=self.seed
         else:
-            self.train_with_early_stopping(pipeline, random_state=self.random_state, seed=self.seed)
+            self.train_with_early_stopping(pipeline) # , random_state=self.random_state, seed=self.seed
 
     # ****************************************************************************************
-    def train_kfold_cv(self, pipeline, random_state=None, seed=None):
+    def train_kfold_cv(self, pipeline):
+        # , random_state=None, seed=None
         """Trains a neural net model with K-fold cross-validation for a specified number of epochs.
         Finds the epoch with the best validation set performance averaged over folds, then refits
         a model for the same number of epochs to the combined training and validation data.
@@ -902,24 +918,24 @@ class NNModelWrapper(ModelWrapper):
                                 model_dataset=pipeline.data, 
                                 production=self.params.production,
                                 transformers=self.transformers,
-                                random_state=self.random_state, 
-                                seed=self.seed)
-        em.set_make_pred(lambda x: self.model.predict(x, []), random_state=self.random_state, seed=self.seed)
-        em.on_new_best_valid(lambda : 1+1, random_state=self.random_state, seed=self.seed) # does not need to take any action
+                                ) # random_state=self.random_state,  seed=self.seed
+        em.set_make_pred(lambda x: self.model.predict(x, [])) # , random_state=self.random_state, seed=self.seed
+        em.on_new_best_valid(lambda : 1+1) # does not need to take any action
+        # , random_state=self.random_state, seed=self.seed
 
         test_dset = pipeline.data.test_dset
 
         # Train a separate model for each fold
         models = []
         for k in range(num_folds):
-            models.append(self.recreate_model(random_state=self.random_state, seed=self.seed)) #random_state=random_state
+            models.append(self.recreate_model()) #random_state=self.random_state, seed=self.seed
 
         for ei in LCTimerKFoldIterator(self.params, pipeline, self.log):
             # Create PerfData structures that are only used within loop to compute metrics during initial training
             train_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'train',
-                                                    random_state=self.random_state, seed=self.seed)
+                                                    ) # random_state=self.random_state, seed=self.seed
             test_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'test',
-                                                   random_state=self.random_state, seed=self.seed)
+                                                   ) # random_state=self.random_state, seed=self.seed
             for k in range(num_folds):
                 self.model = models[k]
                 train_dset, valid_dset = pipeline.data.train_valid_dsets[k]
@@ -930,12 +946,12 @@ class NNModelWrapper(ModelWrapper):
                 train_pred = self.model.predict(train_dset, [])
                 test_pred = self.model.predict(test_dset, [])
                 
-                train_perf = train_perf_data.accumulate_preds(train_pred, train_dset.ids, random_state=self.random_state, seed=self.seed)
-                test_perf = test_perf_data.accumulate_preds(test_pred, test_dset.ids, random_state=self.random_state, seed=self.seed)
+                train_perf = train_perf_data.accumulate_preds(train_pred, train_dset.ids) #random_state=self.random_state, seed=self.seed 
+                test_perf = test_perf_data.accumulate_preds(test_pred, test_dset.ids) # random_state=self.random_state, seed=self.seed
 
                 # valid_perf_data contains both training and validation in self.pred_vals, but self.real_vals is only validation
                 # 
-                valid_perf = em.accumulate(ei, subset='valid', dset=valid_dset, random_state=self.random_state, seed=self.seed)
+                valid_perf = em.accumulate(ei, subset='valid', dset=valid_dset) # , random_state=self.random_state, seed=self.seed
                 self.log.info("Fold %d, epoch %d: training %s = %.3f, validation %s = %.3f, test %s = %.3f" % (
                               k, ei, pipeline.metric_type, train_perf, pipeline.metric_type, valid_perf,
                               pipeline.metric_type, test_perf))
@@ -943,8 +959,8 @@ class NNModelWrapper(ModelWrapper):
             # Compute performance metrics for current epoch across validation sets for all folds, and update
             # the best_epoch and best score if the new score exceeds the previous best score by a specified
             # threshold.
-            em.compute(ei, 'valid', random_state=self.random_state, seed=self.seed)
-            em.update_valid(ei, random_state=self.random_state, seed=self.seed)
+            em.compute(ei, 'valid') # , random_state=self.random_state, seed=self.seed
+            em.update_valid(ei) # , random_state=self.random_state, seed=self.seed
             if em.should_stop():
                 break
             self.num_epochs_trained = ei + 1
@@ -953,12 +969,13 @@ class NNModelWrapper(ModelWrapper):
         # set metrics at each epoch.
         fit_dataset = pipeline.data.combined_training_data()
         retrain_start = time.time()
-        self.model = self.recreate_model(random_state=self.random_state, seed=self.seed)
+        self.model = self.recreate_model() # , random_state=self.random_state, seed=self.seed
         self.log.info(f"Best epoch was {self.best_epoch}, retraining with combined training/validation set")
 
         for ei in range(self.best_epoch+1):
             self.model.fit(fit_dataset, nb_epoch=1, checkpoint_interval=0, restore=False)
-            train_perf, test_perf = em.update_epoch(ei, train_dset=fit_dataset, test_dset=test_dset, random_state=self.random_state, seed=self.seed)
+            train_perf, test_perf = em.update_epoch(ei, train_dset=fit_dataset, test_dset=test_dset) 
+            #, random_state=self.random_state, seed=self.seed
 
             self.log.info(f"Combined folds: Epoch {ei}, training {pipeline.metric_type} = {train_perf:.3},"
                          + f"test {pipeline.metric_type} = {test_perf:.3}")
@@ -969,11 +986,15 @@ class NNModelWrapper(ModelWrapper):
         # Only copy the model files we need, not the entire directory
         self._copy_model(self.best_model_dir)
         retrain_time = time.time() - retrain_start
-        self.log.info("Time to retrain model for %d epochs: %.1f seconds, %.1f sec/epoch" % (self.best_epoch, retrain_time, 
-                       retrain_time/self.best_epoch))
+        if self.best_epoch == 0:
+            self.log.info("Time to retrain model for %d epoch: %.1f seconds" % (self.best_epoch, retrain_time))
+        else:
+            self.log.info("Time to retrain model for %d epochs: %.1f seconds, %.1f sec/epoch" % (self.best_epoch, retrain_time,
+                                                                                                 retrain_time/self.best_epoch))
 
     # ****************************************************************************************
-    def train_with_early_stopping(self, pipeline, random_state=None, seed=None):
+    def train_with_early_stopping(self, pipeline):
+        # , random_state=None, seed=None
         """Trains a neural net model for up to self.params.max_epochs epochs, while tracking the validation
         set metric given by params.model_choice_score_type. Saves a model checkpoint each time the metric
         is improved over its previous saved value by more than a threshold percentage. If the metric fails to
@@ -1007,10 +1028,9 @@ class NNModelWrapper(ModelWrapper):
                                 model_dataset=pipeline.data, 
                                 production=self.params.production,
                                 transformers=self.transformers,
-                               random_state=self.random_state,
-                               seed=self.seed)
-        em.set_make_pred(lambda x: self.model.predict(x, []), random_state=self.random_state, seed=self.seed)
-        em.on_new_best_valid(lambda : self.model.save_checkpoint(), random_state=self.random_state, seed=self.seed)
+                               ) # random_state=self.random_state, seed=self.seed
+        em.set_make_pred(lambda x: self.model.predict(x, [])) # , random_state=self.random_state, seed=self.seed
+        em.on_new_best_valid(lambda : self.model.save_checkpoint()) # , random_state=self.random_state, seed=self.seed
 
         test_dset = pipeline.data.test_dset
         train_dset, valid_dset = pipeline.data.train_valid_dsets[0]
@@ -1019,7 +1039,8 @@ class NNModelWrapper(ModelWrapper):
             # saved will be the one we created intentionally when we reached a new best validation score.
             self.model.fit(train_dset, nb_epoch=1, checkpoint_interval=0)
             train_perf, valid_perf, test_perf = em.update_epoch(ei,
-                                train_dset=train_dset, valid_dset=valid_dset, test_dset=test_dset, random_state=self.random_state, seed=self.seed)
+                                train_dset=train_dset, valid_dset=valid_dset, test_dset=test_dset) 
+            #  random_state=self.random_state, seed=self.seed
             
             self.log.info("Epoch %d: training %s = %.3f, validation %s = %.3f, test %s = %.3f" % (
                           ei, pipeline.metric_type, train_perf, pipeline.metric_type, valid_perf,
@@ -1061,7 +1082,8 @@ class NNModelWrapper(ModelWrapper):
 
 
     # ****************************************************************************************
-    def generate_predictions(self, dataset, random_state=None, seed=None):
+    def generate_predictions(self, dataset):
+        # , random_state=None, seed=None
         """Generates predictions for specified dataset with current model, as well as standard deviations
         if params.uncertainty=True
 
@@ -1091,7 +1113,7 @@ class NNModelWrapper(ModelWrapper):
         if self.params.uncertainty and self.params.prediction_type == 'regression':
             # For multitask, predict_uncertainty returns a list of (pred, std) tuples, one for each task.
             # For singletask, it returns one tuple. Convert the result into a pair of ndarrays of shape (ncmpds, ntasks, nclasses).
-            pred_std = self.model.predict_uncertainty(dataset, seed=seed) # add in the seed 
+            pred_std = self.model.predict_uncertainty(dataset) # add in the seed # , seed=seed
             if type(pred_std) == tuple:
                 #JEA
                 #ntasks = 1
@@ -1174,7 +1196,8 @@ class HybridModelWrapper(NNModelWrapper):
 
     """
 
-    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
+    def __init__(self, params, featurizer, ds_client):
+        # , random_state=None, seed=None
         """Initializes HybridModelWrapper object.
 
         Args:
@@ -1203,10 +1226,10 @@ class HybridModelWrapper(NNModelWrapper):
 
             model: dc.models.TorchModel
         """
-        super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
+        super().__init__(params, featurizer, ds_client) # , random_state=random_state, seed=seed
 
-        self.random_state = random_state
-        self.seed = seed
+        #self.random_state = random_state
+        #self.seed = seed
                 
         if self.params.layer_sizes is None:
             if self.params.featurizer == 'ecfp':
@@ -1409,7 +1432,8 @@ class HybridModelWrapper(NNModelWrapper):
         
         torch.save(checkpoint, checkpoint_file)
 
-    def train(self, pipeline, random_state=None, seed=None):
+    def train(self, pipeline):
+        # , random_state=None, seed=None
         if self.params.loss_func.lower() == "poisson":
             self.loss_func = self._poisson_hybrid_loss
         else:
@@ -1430,14 +1454,14 @@ class HybridModelWrapper(NNModelWrapper):
                                 is_ki=self.params.is_ki,
                                 production=self.params.production,
                                 ki_convert_ratio=self.params.ki_convert_ratio,
-                               random_state=self.random_state,
-                               seed=self.seed)
+                               ) # random_state=self.random_state, seed=self.seed
 
-        em.set_make_pred(lambda x: self.generate_predictions(x,random_state=random_state, seed=seed)[0], random_state=self.random_state, seed=self.seed)
+        em.set_make_pred(lambda x: self.generate_predictions(x)[0]) 
+        # andom_state=random_state, seed=seed
         # initialize ei here so we can use it in the closure
         ei = 0
         em.on_new_best_valid(lambda : self.save_model(checkpoint_file, self.model, 
-            opt, ei, self.model_dict), random_state=self.random_state, seed=self.seed)
+            opt, ei, self.model_dict)) # , random_state=self.random_state, seed=self.seed
 
         train_dset, valid_dset = pipeline.data.train_valid_dsets[0]
         if len(pipeline.data.train_valid_dsets) > 1:
@@ -1467,7 +1491,8 @@ class HybridModelWrapper(NNModelWrapper):
                 valid_loss_ep /= (valid_data.n_ki + valid_data.n_bind)
 
             train_perf, valid_perf, test_perf = em.update_epoch(ei,
-                                train_dset=train_dset, valid_dset=valid_dset, test_dset=test_dset, random_state=self.random_state, seed=self.seed)
+                                train_dset=train_dset, valid_dset=valid_dset, test_dset=test_dset)
+            # , random_state=self.random_state, seed=self.seed
 
             self.log.info("Epoch %d: training %s = %.3f, training loss = %.3f, validation %s = %.3f, validation loss = %.3f, test %s = %.3f" % (
                           ei, pipeline.metric_type, train_perf, train_loss_ep, pipeline.metric_type, valid_perf, valid_loss_ep,
@@ -1489,7 +1514,8 @@ class HybridModelWrapper(NNModelWrapper):
         self.log.info(f"Best model from epoch {self.best_epoch} saved to {self.model_dir}")
 
     # ****************************************************************************************
-    def reload_model(self, reload_dir, random_state=None, seed=None):
+    def reload_model(self, reload_dir):
+        # , random_state=None, seed=None
         """Loads a saved neural net model from the specified directory.
 
         Args:
@@ -1511,10 +1537,11 @@ class HybridModelWrapper(NNModelWrapper):
             raise Exception(f"Checkpoint file doesn't exist in the reload_dir {reload_dir}")
         
         # Restore the transformers from the datastore or filesystem
-        self.reload_transformers(random_state=random_state, seed=seed)
+        self.reload_transformers() # random_state=random_state, seed=seed
 
     # ****************************************************************************************
-    def generate_predictions(self, dataset, random_state=None, seed=None):
+    def generate_predictions(self, dataset):
+        # , random_state=None, seed=None
         """Generates predictions for specified dataset with current model, as well as standard deviations
         if params.uncertainty=True
 
@@ -1588,7 +1615,7 @@ class HybridModelWrapper(NNModelWrapper):
         return model_spec_metadata
 
     # ****************************************************************************************
-    def _create_output_transformers(self, model_dataset, random_state=None, seed=None):
+    def _create_output_transformers(self, model_dataset):
         """Initialize transformers for responses and persist them for later.
 
         Args:
@@ -1600,15 +1627,15 @@ class HybridModelWrapper(NNModelWrapper):
         """
         # TODO: Just a warning, we may have response transformers for classification datasets in the future
         if self.params.prediction_type=='regression' and self.params.transformers==True:
-            self.transformers = [trans.NormalizationTransformerHybrid(transform_y=True, dataset=model_dataset.dataset,random_state=self.random_state, seed=self.seed)]
-
+            self.transformers = [trans.NormalizationTransformerHybrid(transform_y=True, dataset=model_dataset.dataset)]
 # ****************************************************************************************
 class ForestModelWrapper(ModelWrapper):
     """Wrapper class for DCRFModelWrapper and DCxgboostModelWrapper
 
     contains code that is similar between the two tree based classes
     """
-    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
+    def __init__(self, params, featurizer, ds_client):
+        # , random_state=None, seed=None
         """Initializes DCRFModelWrapper object.
 
         Args:
@@ -1617,18 +1644,20 @@ class ForestModelWrapper(ModelWrapper):
             featurizer (Featurization): Object managing the featurization of compounds
             ds_client: datastore client.
         """
-        super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
+        super().__init__(params, featurizer, ds_client)
+        #  random_state=random_state, seed=seed
         self.best_model_dir = os.path.join(self.output_dir, 'best_model')
         self.model_dir = self.best_model_dir
         os.makedirs(self.best_model_dir, exist_ok=True)
 
         self.random_state = random_state
-        self.seed = seed
-        self.model = self.make_dc_model(self.best_model_dir, random_state=self.random_state, seed=self.seed)
+        #self.seed = seed
+        self.model = self.make_dc_model(self.best_model_dir) # , random_state=self.random_state, seed=self.seed
         
         
     # ****************************************************************************************
-    def train(self, pipeline, random_state=None, seed=None):
+    def train(self, pipeline):
+        # , random_state=None, seed=None
         """Trains a forest model and saves the trained model.
 
         Args:
@@ -1652,9 +1681,12 @@ class ForestModelWrapper(ModelWrapper):
         """
         self.data = pipeline.data
         self.best_epoch = None
-        self.train_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers,'train', random_state=self.random_state, seed=self.seed)
-        self.valid_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'valid', random_state=self.random_state, seed=self.seed)
-        self.test_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'test', random_state=self.random_state, seed=self.seed)
+        self.train_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers,'train')
+        # random_state=self.random_state, seed=self.seed
+        self.valid_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'valid')
+        # , random_state=self.random_state, seed=self.seed
+        self.test_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'test') 
+        # , random_state=self.random_state, seed=self.seed
 
         test_dset = pipeline.data.test_dset
 
@@ -1664,25 +1696,27 @@ class ForestModelWrapper(ModelWrapper):
             self.model.fit(train_dset)
 
             train_pred = self.model.predict(train_dset, [])
-            train_perf = self.train_perf_data.accumulate_preds(train_pred, train_dset.ids, random_state=self.random_state, seed=self.seed)
+            train_perf = self.train_perf_data.accumulate_preds(train_pred, train_dset.ids)
+            # , random_state=self.random_state, seed=self.seed
 
             valid_pred = self.model.predict(valid_dset, [])
-            valid_perf = self.valid_perf_data.accumulate_preds(valid_pred, valid_dset.ids, random_state=self.random_state, seed=self.seed)
+            valid_perf = self.valid_perf_data.accumulate_preds(valid_pred, valid_dset.ids) # , random_state=self.random_state, seed=self.seed
 
             test_pred = self.model.predict(test_dset, [])
-            test_perf = self.test_perf_data.accumulate_preds(test_pred, test_dset.ids, random_state=self.random_state, seed=self.seed)
+            test_perf = self.test_perf_data.accumulate_preds(test_pred, test_dset.ids) # , random_state=self.random_state, seed=self.seed
             self.log.info("Fold %d: training %s = %.3f, validation %s = %.3f, test %s = %.3f" % (
                           k, pipeline.metric_type, train_perf, pipeline.metric_type, valid_perf,
                              pipeline.metric_type, test_perf))
 
 
         # Compute mean and SD of performance metrics across validation sets for all folds
-        self.train_perf, self.train_perf_std = self.train_perf_data.compute_perf_metrics(random_state=self.random_state, seed=self.seed)
-        self.valid_perf, self.valid_perf_std = self.valid_perf_data.compute_perf_metrics(random_state=self.random_state, seed=self.seed)
-        self.test_perf, self.test_perf_std = self.test_perf_data.compute_perf_metrics(random_state=self.random_state, seed=self.seed)
+        self.train_perf, self.train_perf_std = self.train_perf_data.compute_perf_metrics() # random_state=self.random_state, seed=self.seed
+        self.valid_perf, self.valid_perf_std = self.valid_perf_data.compute_perf_metrics() # random_state=self.random_state, seed=self.seed
+        self.test_perf, self.test_perf_std = self.test_perf_data.compute_perf_metrics() # random_state=self.random_state, seed=self.seed
 
         # Compute score to be used for ranking model hyperparameter sets
-        self.model_choice_score = self.valid_perf_data.model_choice_score(self.params.model_choice_score_type, random_state=self.random_state, seed=self.seed)
+        self.model_choice_score = self.valid_perf_data.model_choice_score(self.params.model_choice_score_type)
+        # , random_state=self.random_state, seed=self.seed
 
         if num_folds > 1:
             # For k-fold CV, retrain on the combined training and validation sets
@@ -1693,7 +1727,8 @@ class ForestModelWrapper(ModelWrapper):
         self.best_epoch = 0
 
     # ****************************************************************************************
-    def make_dc_model(self, model_dir, random_state=None, seed=None):
+    def make_dc_model(self, model_dir):
+        # , random_state=None, seed=None
         """Build a DeepChem model.
 
         Builds a model, wraps it in DeepChem's wrapper and returns it
@@ -1707,7 +1742,8 @@ class ForestModelWrapper(ModelWrapper):
         raise NotImplementedError
 
     # ****************************************************************************************
-    def reload_model(self, reload_dir,random_state=None, seed=None):
+    def reload_model(self, reload_dir):
+        # , random_state=None, seed=None
         """Loads a saved random forest model from the specified directory. Also loads any transformers that
         were saved with it.
 
@@ -1721,12 +1757,13 @@ class ForestModelWrapper(ModelWrapper):
 
         """
         # Restore the transformers from the datastore or filesystem
-        self.reload_transformers(random_state=self.random_state, seed=self.seed)
-        self.model = self.make_dc_model(reload_dir, random_state=self.random_state, seed=self.seed)
+        self.reload_transformers() # random_state=self.random_state, seed=self.seed
+        self.model = self.make_dc_model(reload_dir) # , random_state=self.random_state, seed=self.seed
         self.model.reload()
 
     # ****************************************************************************************
-    def get_pred_results(self, subset, epoch_label=None, random_state=None, seed=None):
+    def get_pred_results(self, subset, epoch_label=None): 
+        # , random_state=None, seed=None
         """Returns predicted values and metrics from a training, validation or test subset
         of the current dataset, or the full dataset.
 
@@ -1744,11 +1781,11 @@ class ForestModelWrapper(ModelWrapper):
 
         """
         if subset == 'train':
-            return self.get_train_valid_pred_results(self.train_perf_data, random_state=self.random_state, seed=self.seed)
+            return self.get_train_valid_pred_results(self.train_perf_data) # , random_state=self.random_state, seed=self.seed
         elif subset == 'valid':
-            return self.get_train_valid_pred_results(self.valid_perf_data, random_state=self.random_state, seed=self.seed)
+            return self.get_train_valid_pred_results(self.valid_perf_data) # , random_state=self.random_state, seed=self.seed
         elif subset == 'test':
-            return self.get_train_valid_pred_results(self.test_perf_data, random_state=self.random_state, seed=self.seed)
+            return self.get_train_valid_pred_results(self.test_perf_data) # , random_state=self.random_state, seed=self.seed
         elif subset == 'full':
             return self.get_full_dataset_pred_results(self.data, random_state=self.random_state, seed=self.seed)
         else:
