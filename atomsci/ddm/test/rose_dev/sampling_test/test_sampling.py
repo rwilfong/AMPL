@@ -10,10 +10,9 @@ import json
 
 from atomsci.ddm.pipeline import model_pipeline as mp
 from atomsci.ddm.pipeline import parameter_parser as parse
-from atomsci.ddm.test.integrative import integrative_utilities
 import atomsci.ddm.pipeline.predict_from_model as pfm
 
-########### TEST FUNCTIONS ################
+#-------------------------------------------------------------------
 
 def get_test_set(dataset_key, split_csv, id_col):
     """
@@ -54,66 +53,6 @@ def find_best_test_metric(model_metrics):
         if metric['label'] == 'best' and metric['subset']=='test':
             return metric 
     return None 
-
-##########################################################
-
-################# ACTUAL TESTS ###########################
-
-################# SMOTE SPECIFIC #########################
-
-def train_valid_test_RF_SMOTE_test(): 
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file = os.path.join(script_path, 'train_valid_test_RF_SMOTE.json')
-
-    pparams = parse.wrapper(['--config_file', json_file])
-    pparams.dataset_key= os.path.join(script_path,
-                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
-    pparams.result_dir=script_path
-    pparams.split_uuid= 'test-split'
-
-    saved_model_identity(pparams)
-
-def train_valid_test_NN_SMOTE_test():
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file = os.path.join(script_path, 'train_valid_test_NN_SMOTE.json')
-
-    pparams = parse.wrapper(['--config_file', json_file])
-    pparams.dataset_key= os.path.join(script_path,
-                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
-    pparams.result_dir=script_path
-    pparams.split_uuid= 'test-split'
-
-    saved_model_identity(pparams)
-
-
-################# UNDERSAMPLING SPECIFIC #########################
-def train_valid_test_RF_undersampling_test(): 
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file = os.path.join(script_path, 'train_valid_test_RF_undersampling.json')
-
-    pparams = parse.wrapper(['--config_file', json_file])
-    pparams.dataset_key= os.path.join(script_path,
-                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
-    pparams.result_dir=script_path
-    pparams.split_uuid= 'test-split'
-
-    saved_model_identity(pparams)
-
-def train_valid_test_NN_undersampling_test():
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file = os.path.join(script_path, 'train_valid_test_NN_undersampling.json')
-
-    pparams = parse.wrapper(['--config_file', json_file])
-    pparams.dataset_key= os.path.join(script_path,
-                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
-    pparams.result_dir=script_path
-    pparams.split_uuid= 'test-split'
-
-    saved_model_identity(pparams)
-
-###########################################################
-
-################ RETURN INFO ##############################
 
 def saved_model_identity(pparams):
     script_path = os.path.dirname(os.path.realpath(__file__))
@@ -160,7 +99,7 @@ def saved_model_identity(pparams):
     saved_recall = metrics['prediction_results']['recall_score']
     saved_prc_auc = metrics['prediction_results']['prc_auc_score']
 
-    # reveal results
+    # show results 
     print(metrics['subset'])
     print(pred_df.columns)
     print("Accuracy difference:", abs(accuracy - saved_accuracy))
@@ -174,27 +113,129 @@ def saved_model_identity(pparams):
         and abs(prc_auc - saved_prc_auc) < 1 \
         and (test_length == len(test_df))
 
-    
-    
+#-------------------------------------------------------------------
 
-##########################################################
+def train_valid_test_RF_SMOTE_test(): 
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'train_valid_test_RF_SMOTE.json')
 
-###### DEV ZONE ##########
-def k_fold_cv_NN_test():
-    pass
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
 
-def k_fold_cv_RF_test():
-    pass
+    saved_model_identity(pparams)
 
-##########################
+def train_valid_test_NN_SMOTE_test():
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'train_valid_test_NN_SMOTE.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+def train_valid_test_RF_undersampling_test(): 
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'train_valid_test_RF_undersampling.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+def train_valid_test_NN_undersampling_test():
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'train_valid_test_NN_undersampling.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+def k_fold_cv_NN_SMOTE_test():
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'kfold_cv_NN_SMOTE.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+def k_fold_cv_NN_undersampling_test():
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'kfold_cv_NN_undersampling.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+def k_fold_cv_RF_SMOTE_test():
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'kfold_cv_RF_SMOTE.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+def k_fold_cv_RF_undersampling_test():
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'kfold_cv_RF_undersampling.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+#-------------------------------------------------------------------
 
 if __name__=='__main__':
     print('train_valid_test_RF_SMOTE_test')
     train_valid_test_RF_SMOTE_test()
+    
     print('train_valid_test_NN_SMOTE_test')
     train_valid_test_NN_SMOTE_test()
+    
     print("train_valid_test_RF_undersampling_test")
     train_valid_test_RF_undersampling_test()
+    
     print("train_valid_test_NN_undersampling_test")
     train_valid_test_NN_undersampling_test()
+    
+    print("kfold_cv_NN_SMOTE_test")
+    k_fold_cv_NN_SMOTE_test()
+
+    print("kfold_cv_NN_undersampling_test")
+    k_fold_cv_NN_undersampling_test()
+
+    print("kfold_cv_RF_SMOTE_test")
+    k_fold_cv_RF_SMOTE_test()
+
+    print("kfold_cv_RF_undersampling_test")
+    k_fold_cv_RF_undersampling_test()
+
     print("Passed!")
