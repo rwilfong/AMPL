@@ -15,7 +15,6 @@ from pathlib import Path
 import getpass
 import traceback
 import sys
-from atomsci.ddm.pipeline import random_seed as rs 
 from collections import defaultdict
 
 feather_supported = True
@@ -29,7 +28,6 @@ logging.basicConfig(format='%(asctime)-15s %(message)s')
 
 # ****************************************************************************************
 def create_model_dataset(params, featurization, ds_client=None):
-    #  random_state=None, seed=None
     """Factory function for creating DatastoreDataset or FileDataset objects.
 
     Args:
@@ -46,13 +44,12 @@ def create_model_dataset(params, featurization, ds_client=None):
         either (DatastoreDataset) or (FileDataset): instantiated ModelDataset subclass specified by params
     """
     if params.datastore:
-        return DatastoreDataset(params, featurization, ds_client) # , random_state, seed
+        return DatastoreDataset(params, featurization, ds_client)
     else:
-        return FileDataset(params, featurization) # , random_state, seed
+        return FileDataset(params, featurization)
 
 # ****************************************************************************************
 def create_minimal_dataset(params, featurization, contains_responses=False):
-    # , random_state=None, seed=None
     """Create a MinimalDataset object for non-persistent data (e.g., a list of compounds or SMILES
     strings or a data frame). This object will be suitable for running predictions on a pretrained
     model, but not for training.
@@ -69,7 +66,7 @@ def create_minimal_dataset(params, featurization, contains_responses=False):
         (MinimalDataset): a new MinimalDataset object
 
     """
-    return MinimalDataset(params, featurization, contains_responses) # , random_state, seed
+    return MinimalDataset(params, featurization, contains_responses)
 
 # ****************************************************************************************
 def check_task_columns(params, dset_df):
@@ -280,8 +277,7 @@ class ModelDataset(object):
             test_attr: The attribute DataFrame for the test set, containing compound IDs and SMILES strings.
     """
 
-    def __init__(self, params, featurization,random_state=None, seed=None):
-        # ,random_state=None, seed=None
+    def __init__(self, params, featurization):
         """Initializes ModelDataset object.
 
         Arguments:
@@ -299,12 +295,9 @@ class ModelDataset(object):
         # override this.
         self.contains_responses = True
 
-        #self.random_state = random_state
-        #self.seed = seed
-        
         # Create object to delegate featurization to
         if featurization is None:
-            self.featurization = feat.create_featurization(self.params) # , random_state=self.random_state, seed=self.seed
+            self.featurization = feat.create_featurization(self.params)
         else:
             # Reuse existing Featurization object
             self.featurization = featurization
@@ -341,7 +334,6 @@ class ModelDataset(object):
 
     # ****************************************************************************************
     def load_featurized_data(self):
-        # , random_state=None, seed=None 
         """Loads prefeaturized data from the datastore or filesystem. Returns a data frame,
         which is then passed to featurization.extract_prefeaturized_data() for processing.
 
@@ -353,7 +345,6 @@ class ModelDataset(object):
 
     # ****************************************************************************************
     def get_featurized_data(self, params=None):
-        #, random_state=None, seed=None 
         """Does whatever is necessary to prepare a featurized dataset.
         Loads an existing prefeaturized dataset if one exists and if parameter previously_featurized is
         set True; otherwise loads a raw dataset and featurizes it. Creates an associated DeepChem Dataset
@@ -374,13 +365,13 @@ class ModelDataset(object):
         if params.previously_featurized:
             try:
                 self.log.debug("Attempting to load featurized dataset")
-                featurized_dset_df = self.load_featurized_data() # random_state=self.random_state, seed=self.seed
+                featurized_dset_df = self.load_featurized_data() 
                 if (params.max_dataset_rows > 0) and (len(featurized_dset_df) > params.max_dataset_rows):
                     featurized_dset_df = featurized_dset_df.sample(n=params.max_dataset_rows)
                 featurized_dset_df[params.id_col] = featurized_dset_df[params.id_col].astype(str)
                 self.log.debug("Got dataset, attempting to extract data")
                 features, ids, self.vals, self.attr = self.featurization.extract_prefeaturized_data(
-                                                           featurized_dset_df, params) #  ,random_state=random_state, seed=seed
+                                                           featurized_dset_df, params)
                 self.n_features = self.featurization.get_feature_count()
                 self.log.debug("Creating deepchem dataset")
                 
@@ -448,7 +439,6 @@ class ModelDataset(object):
 
     # ****************************************************************************************
     def split_dataset(self, random_state=None, seed=None):
-        # , random_state=None, seed=None
         """Splits the dataset into paired training/validation and test subsets, according to the split strategy
                 selected by the model params. For traditional train/valid/test splits, there is only one training/validation
                 pair. For k-fold cross-validation splits, there are k different train/valid pairs; the validation sets are
@@ -579,7 +569,6 @@ class ModelDataset(object):
 
     # ****************************************************************************************
     def load_presplit_dataset(self, directory=None, random_state=None, seed=None):
-        # , random_state=None, seed=None
         """Loads a table of compound IDs assigned to split subsets, and uses them to split
         the currently loaded featurized dataset.
 
@@ -797,7 +786,7 @@ class MinimalDataset(ModelDataset):
 
     """
 
-    def __init__(self, params, featurization, contains_responses=False, random_state=None, seed=None):
+    def __init__(self, params, featurization, contains_responses=False):
         """Initializes MinimalDataset object.
 
         Args:
@@ -816,8 +805,6 @@ class MinimalDataset(ModelDataset):
         self.tasks = None
         self.attr = None
         self.contains_responses = contains_responses
-        self.random_state = random_state
-        self.seed = seed
 
     # ****************************************************************************************
     def get_dataset_tasks(self, dset_df):
@@ -942,7 +929,7 @@ class DatastoreDataset(ModelDataset):
     """
 
     #TODO: Added featurization=None as default, is this ok?
-    def __init__(self, params, featurization=None, ds_client=None, random_state=None, seed=None):
+    def __init__(self, params, featurization=None, ds_client=None):
         """Initializes DatastoreDataset object.
 
         Args:
@@ -952,13 +939,9 @@ class DatastoreDataset(ModelDataset):
 
             featurization: Featurization object; will be created if necessary based on params
 
-            random_state:
-
-            seed
-
         """
 
-        super().__init__(params, featurization, random_state, seed)
+        super().__init__(params, featurization)
         self.dataset_oid = None
         if params.dataset_name:
             self.dataset_name = params.dataset_name
@@ -968,9 +951,6 @@ class DatastoreDataset(ModelDataset):
             self.ds_client = dsf.config_client()
         else:
             self.ds_client = ds_client
-        
-        self.random_state = random_state
-        self.seed = seed 
 
     # ****************************************************************************************
     def load_full_dataset(self):
@@ -1082,7 +1062,6 @@ class DatastoreDataset(ModelDataset):
 
     # ****************************************************************************************
     def load_featurized_data(self):
-        # , random_state=None, seed=None
         """Loads prefeaturized data from the datastore. Returns a data frame,
         which is then passed to featurization.extract_prefeaturized_data() for processing.
 
@@ -1244,7 +1223,7 @@ class FileDataset(ModelDataset):
             test_attr: The attribute DataFrame for the test set, containing compound IDs and SMILES strings.
     """
 
-    def __init__(self, params, featurization, random_state=None, seed=None):
+    def __init__(self, params, featurization):
         """Initializes FileDataset object.
 
         Args:
@@ -1252,15 +1231,12 @@ class FileDataset(ModelDataset):
 
             featurization: Featurization object; will be created if necessary based on params
         """
-        super().__init__(params, featurization, random_state, seed) # , random_state
+        super().__init__(params, featurization)
         if params.dataset_name:
             self.dataset_name = params.dataset_name
         else:
             self.dataset_name = os.path.basename(self.params.dataset_key).replace('.csv', '')
-
-        self.random_state = random_state
-        self.seed = seed
-
+            
     # ****************************************************************************************
     def load_full_dataset(self):
         """Loads the dataset from the file system.
@@ -1351,7 +1327,6 @@ class FileDataset(ModelDataset):
 
     # ****************************************************************************************
     def load_featurized_data(self):
-        # , random_state=None, seed=None
         """Loads prefeaturized data from the filesystem. Returns a data frame,
         which is then passed to featurization.extract_prefeaturized_data() for processing.
 

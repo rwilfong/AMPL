@@ -27,7 +27,7 @@ def apply_sampling_method(train, params, random_state=None, seed=None):
           
     if params.sampling_method=='SMOTE':
         sampling_k_neighbors = params.sampling_k_neighbors # smote specific parameter 
-        smote=SMOTE(sampling_strategy=sampling_ratio, k_neighbors=sampling_k_neighbors, random_state=seed) # , random_state=random_state
+        smote=SMOTE(sampling_strategy=sampling_ratio, k_neighbors=sampling_k_neighbors, random_state=seed)
         X_resampled, y_resampled = smote.fit_resample(train.X, train.y.ravel())
         y_resampled=y_resampled.reshape(-1, 1)
         
@@ -45,7 +45,7 @@ def apply_sampling_method(train, params, random_state=None, seed=None):
         new_ids = np.concatenate([train.ids, synthetic_ids])
 
     elif params.sampling_method == 'undersampling':
-        undersampler = RandomUnderSampler(sampling_strategy=sampling_ratio, random_state=seed) #, random_state=random_state
+        undersampler = RandomUnderSampler(sampling_strategy=sampling_ratio, random_state=seed)
         X_resampled, y_resampled = undersampler.fit_resample(train.X, train.y.ravel())
         y_resampled=y_resampled.reshape(-1, 1)
         
