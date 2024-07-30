@@ -48,8 +48,7 @@ def modify_params_with_seed(pparams, seed):
     return pparams
 
 def saved_model_identity(pparams):
-    script_path = os.path.dirname(os.path.realpath(__file__))
-    
+
     retrain_pparams = copy.copy(pparams)
 
     model_pipe = mp.ModelPipeline(pparams)
@@ -139,7 +138,7 @@ def saved_model_identity(pparams):
 # Random Forest
 def test_RF_regression_reproducibility():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'rf_regression_train_valid_test.json')
+    json_file =  os.path.join(script_path, 'model_json/rf_regression_train_valid_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -149,7 +148,7 @@ def test_RF_regression_reproducibility():
 
 def test_RF_classification_reproducibility():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'rf_classification_train_valid_test.json')
+    json_file =  os.path.join(script_path, 'model_json/rf_classification_train_valid_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -159,7 +158,7 @@ def test_RF_classification_reproducibility():
 
 def test_RF_regression_kfold_cv_reproducibility(): 
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'rf_regression_kfold_test.json')
+    json_file =  os.path.join(script_path, 'model_json/rf_regression_kfold_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -169,7 +168,7 @@ def test_RF_regression_kfold_cv_reproducibility():
 
 def test_RF_classification_kfold_cv_reproducibility(): 
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'rf_classification_kfold_test.json')
+    json_file =  os.path.join(script_path, 'model_json/rf_classification_kfold_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -180,7 +179,7 @@ def test_RF_classification_kfold_cv_reproducibility():
 # Neural Network
 def test_NN_regression_reproducibility():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'nn_regression_train_valid_test.json')
+    json_file =  os.path.join(script_path, 'model_json/nn_regression_train_valid_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -190,7 +189,7 @@ def test_NN_regression_reproducibility():
 
 def test_NN_regression_kfold_cv_reproducibility():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'nn_regression_kfold_test.json')
+    json_file =  os.path.join(script_path, 'model_json/nn_regression_kfold_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -200,7 +199,7 @@ def test_NN_regression_kfold_cv_reproducibility():
 
 def test_NN_classification_reproducibility():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'nn_classification_train_valid_test.json')
+    json_file =  os.path.join(script_path, 'model_json/nn_classification_train_valid_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -210,7 +209,7 @@ def test_NN_classification_reproducibility():
 
 def test_NN_classification_kfold_cv_reproducibility():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'nn_classification_kfold_test.json')
+    json_file =  os.path.join(script_path, 'model_json/nn_classification_kfold_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -221,7 +220,7 @@ def test_NN_classification_kfold_cv_reproducibility():
 # XGBoost 
 def test_xgboost_regression_reproducibility():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'xgboost_regression_train_valid_test.json')
+    json_file =  os.path.join(script_path, 'model_json/xgboost_regression_train_valid_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -231,7 +230,7 @@ def test_xgboost_regression_reproducibility():
 
 def test_xgboost_classification_reproducibility():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'xgboost_classification_train_valid_test.json')
+    json_file =  os.path.join(script_path, 'model_json/xgboost_classification_train_valid_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -241,7 +240,7 @@ def test_xgboost_classification_reproducibility():
 
 def test_xgboost_regression_kfold_cv_reproducibility():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'xgboost_regression_train_valid_test.json')
+    json_file =  os.path.join(script_path, 'model_json/xgboost_regression_train_valid_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -251,7 +250,7 @@ def test_xgboost_regression_kfold_cv_reproducibility():
 
 def test_xgboost_classification_kfold_cv_reproducibility():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'xgboost_classification_train_valid_test.json')
+    json_file =  os.path.join(script_path, 'model_json/xgboost_classification_train_valid_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/aurka_chembl_base_smiles_union.csv')
@@ -264,7 +263,7 @@ def test_xgboost_classification_kfold_cv_reproducibility():
 def test_hybrid_regression_reproducibility():
     """Using the H1 hybrid dataset in the integrative testsets. Hybrid needs to be ran on LC"""
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'hybrid_regression_train_valid_test.json')
+    json_file =  os.path.join(script_path, 'model_json/hybrid_regression_train_valid_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/H1_hybrid.csv')
@@ -275,7 +274,7 @@ def test_hybrid_regression_reproducibility():
 def test_multitask_regression_reproducibility():
     """ use the data set in the ad hoc multittask models - dataset/SLC6A2_3_4.csv"""
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file =  os.path.join(script_path, 'hybrid_regression_train_valid_test.json')
+    json_file =  os.path.join(script_path, 'model_json/multitask_regression_train_valid_test.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key = os.path.join(script_path, '../../test_datasets/KCNA5_KCNH2_SCN5A_data.csv')
