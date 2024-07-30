@@ -26,14 +26,15 @@ class RandomStateGenerator:
     
     def set_seed(self, seed):
         """Set the seed for all relevant libraries."""
-        self.seed = seed
+        #self.seed = seed
         global _seed, _random_state
         _seed = seed
+
         _random_state = np.random.default_rng(_seed)
         
         # set seed for numpy
         np.random.default_rng(_seed)
-        # needed for deepchem I think 
+        # needed for deepchem
         np.random.seed(_seed)
         
         # set seed for random
