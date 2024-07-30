@@ -1,15 +1,8 @@
 """Module used to perform sampling on classification datasets."""
-import pandas as pd 
 import numpy as np
-import logging
-import os
 # sampling specific libraries 
 from imblearn.over_sampling import SMOTE
 from imblearn.under_sampling import RandomUnderSampler
-# AMPL dependencies 
-from atomsci.ddm.pipeline import parameter_parser as pp
-from atomsci.ddm.pipeline import model_pipeline as mp
-from atomsci.ddm.pipeline import model_datasets as md 
 # deepchem for dataset
 import deepchem as dc
 # =====================================================================================================

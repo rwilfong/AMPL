@@ -1182,7 +1182,6 @@ class KFoldClassificationPerfData(ClassificationPerfData):
             self.transformers = transformers
         else:
             self.transformers = []
-        fold_index = [i for i, _ in enumerate(model_dataset.train_valid_dsets)]
 
     # ****************************************************************************************
     # class KFold

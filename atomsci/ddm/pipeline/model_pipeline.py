@@ -33,7 +33,7 @@ from atomsci.ddm.pipeline import parameter_parser as parse
 from atomsci.ddm.pipeline import model_tracker as trkr
 from atomsci.ddm.pipeline import transformations as trans
 from atomsci.ddm.pipeline import sampling as sample
-from atomsci.ddm.pipeline import random_seed_dev as rs
+from atomsci.ddm.pipeline import random_seed as rs
 
 logging.basicConfig(format='%(asctime)-15s %(message)s')
 
@@ -643,7 +643,7 @@ class ModelPipeline:
         ## return if split only
         if self.params.split_only:
             return
-        self.model_wrapper.train(self) # , random_state=self.random_state, seed=self.seed
+        self.model_wrapper.train(self)
         # Create the metadata for the trained model
         self.create_model_metadata()
         # Save the performance metrics for each training data subset, for the best epoch
@@ -810,7 +810,7 @@ class ModelPipeline:
 
     # ****************************************************************************************
     def predict_full_dataset(self, dset_df, is_featurized=False, contains_responses=False, dset_params=None, AD_method=None, k=5, dist_metric="euclidean", max_train_records_for_AD=1000):
-        # , random_state=None, seed=None
+        
         """Compute predicted responses from a pretrained model on a set of compounds listed in
         a data frame. The data frame should contain, at minimum, a column of compound IDs; if
         SMILES strings are needed to compute features, they should be provided as well. Feature
@@ -1099,7 +1099,7 @@ def run_models(params, shared_featurization=None, generator=False):
 
         # If there is no shared featurization object, create one for this model
         if shared_featurization is None:
-            featurization = feat.create_featurization(model_params, random_state=self.random_state, seed=self.seed)
+            featurization = feat.create_featurization(model_params)
         else:
             featurization = shared_featurization
 
@@ -1223,7 +1223,7 @@ def regenerate_results(result_dir, params=None, metadata_dict=None, shared_featu
 
 
 # ****************************************************************************************
-def create_prediction_pipeline(params, model_uuid, collection_name=None, featurization=None, random_state=None, seed=None, alt_bucket='CRADA'):
+def create_prediction_pipeline(params, model_uuid, collection_name=None, featurization=None, alt_bucket='CRADA'):
     """Create a ModelPipeline object to be used for running blind predictions on datasets
     where the ground truth is not known, given a pretrained model in the model tracker database.
 
@@ -1309,12 +1309,12 @@ def create_prediction_pipeline(params, model_uuid, collection_name=None, featuri
         featurization = feat.create_featurization(model_params)
 
     # Create a ModelPipeline object
-    pipeline = ModelPipeline(model_params, ds_client, mlmt_client, random_state=random_state, seed=seed)
+    pipeline = ModelPipeline(model_params, ds_client, mlmt_client)
     pipeline.orig_params = orig_params
 
     # Create the ModelWrapper object.
     pipeline.model_wrapper = model_wrapper.create_model_wrapper(pipeline.params, featurization,
-                                                                pipeline.ds_client, random_state=random_state, seed=seed)
+                                                                pipeline.ds_client)
 
     if params.verbose:
         pipeline.log.setLevel(logging.DEBUG)
@@ -1338,7 +1338,7 @@ def create_prediction_pipeline(params, model_uuid, collection_name=None, featuri
 
 # ****************************************************************************************
 def create_prediction_pipeline_from_file(params, reload_dir, model_path=None, model_type='best_model', featurization=None,
-                                         verbose=True, random_state=None, seed=None):
+                                         verbose=True):
     """Create a ModelPipeline object to be used for running blind predictions on datasets, given a pretrained model stored
     in the filesystem. The model may be stored either as a gzipped tar archive or as a directory.
 
@@ -1423,11 +1423,11 @@ def create_prediction_pipeline_from_file(params, reload_dir, model_path=None, mo
 
     log.info("Featurization = %s" % str(featurization))
     # Create a ModelPipeline object
-    pipeline = ModelPipeline(model_params, random_state=random_state, seed=seed)
+    pipeline = ModelPipeline(model_params)
     pipeline.orig_params = orig_params
 
     # Create the ModelWrapper object.
-    pipeline.model_wrapper = model_wrapper.create_model_wrapper(pipeline.params, featurization, random_state=random_state, seed=seed)
+    pipeline.model_wrapper = model_wrapper.create_model_wrapper(pipeline.params, featurization)
 
     if verbose:
         pipeline.log.setLevel(logging.DEBUG)

@@ -2688,7 +2688,7 @@ class GraphConvDCModelWrapper(KerasDeepChemModelWrapper):
 
     """
 
-    def __init__(self, params, featurizer, ds_client):
+    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
         """Initializes GraphConvDCModelWrapper object.
 
         Args:
@@ -2716,7 +2716,7 @@ class GraphConvDCModelWrapper(KerasDeepChemModelWrapper):
             model: The dc.models.GraphConvModel, MultitaskRegressor, or MultitaskClassifier object, as specified by the params attribute
 
         """
-        super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
+        super().__init__(params, featurizer, ds_client)
         # TODO (ksm): The next two attributes aren't used; suggest we drop them.
         self.g = tf.Graph()
         self.sess = tf.compat.v1.Session(graph=self.g)
