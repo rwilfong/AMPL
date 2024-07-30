@@ -122,6 +122,7 @@ def saved_model_identity(pparams):
 
 #-------------------------------------------------------------------
 
+#-------- random forest
 def train_valid_test_RF_SMOTE_test(): 
     script_path = os.path.dirname(os.path.realpath(__file__))
     json_file = os.path.join(script_path, 'sampling_json/train_valid_test_RF_SMOTE.json')
@@ -134,9 +135,22 @@ def train_valid_test_RF_SMOTE_test():
 
     saved_model_identity(pparams)
 
-def train_valid_test_NN_SMOTE_test():
+def k_fold_cv_RF_SMOTE_test():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file = os.path.join(script_path, 'sampling_json/train_valid_test_NN_SMOTE.json')
+    json_file = os.path.join(script_path, 'sampling_json/kfold_cv_RF_SMOTE.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+def k_fold_cv_RF_undersampling_test():
+
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'sampling_json/kfold_cv_RF_undersampling.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key= os.path.join(script_path,
@@ -149,6 +163,20 @@ def train_valid_test_NN_SMOTE_test():
 def train_valid_test_RF_undersampling_test(): 
     script_path = os.path.dirname(os.path.realpath(__file__))
     json_file = os.path.join(script_path, 'sampling_json/train_valid_test_RF_undersampling.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+#-------- neural network
+
+def train_valid_test_NN_SMOTE_test():
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'sampling_json/train_valid_test_NN_SMOTE.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key= os.path.join(script_path,
@@ -194,9 +222,11 @@ def k_fold_cv_NN_undersampling_test():
 
     saved_model_identity(pparams)
 
-def k_fold_cv_RF_SMOTE_test():
+#-------- xgboost
+
+def train_valid_test_xgboost_SMOTE_test():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file = os.path.join(script_path, 'sampling_json/kfold_cv_RF_SMOTE.json')
+    json_file = os.path.join(script_path, 'sampling_json/train_valid_test_xgboost_SMOTE.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key= os.path.join(script_path,
@@ -206,9 +236,9 @@ def k_fold_cv_RF_SMOTE_test():
 
     saved_model_identity(pparams)
 
-def k_fold_cv_RF_undersampling_test():
+def train_valid_test_xgboost_undersampling_test():
     script_path = os.path.dirname(os.path.realpath(__file__))
-    json_file = os.path.join(script_path, 'sampling_json/kfold_cv_RF_undersampling.json')
+    json_file = os.path.join(script_path, 'sampling_json/train_valid_test_xgboost_undersampling.json')
 
     pparams = parse.wrapper(['--config_file', json_file])
     pparams.dataset_key= os.path.join(script_path,
@@ -218,6 +248,29 @@ def k_fold_cv_RF_undersampling_test():
 
     saved_model_identity(pparams)
 
+def k_fold_cv_xgboost_SMOTE_test():
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'sampling_json/kfold_cv_xgboost_SMOTE.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
+
+def k_fold_cv_xgboost_undersampling_test():
+    script_path = os.path.dirname(os.path.realpath(__file__))
+    json_file = os.path.join(script_path, 'sampling_json/kfold_cv_xgboost_undersampling.json')
+
+    pparams = parse.wrapper(['--config_file', json_file])
+    pparams.dataset_key= os.path.join(script_path,
+                                      '../../test_datasets/aurka_chembl_base_smiles_union.csv')
+    pparams.result_dir=script_path
+    pparams.split_uuid= 'test-split'
+
+    saved_model_identity(pparams)
 #-------------------------------------------------------------------
 
 if __name__=='__main__':
@@ -244,5 +297,17 @@ if __name__=='__main__':
 
     print("kfold_cv_RF_undersampling_test")
     k_fold_cv_RF_undersampling_test()
+    
+    print("train_valid_test_xgboost_SMOTE_test")
+    train_valid_test_xgboost_SMOTE_test()
+
+    print("train_valid_test_xgboost_undersampling_test")
+    train_valid_test_xgboost_undersampling_test()
+
+    print("k_fold_cv_xgboost_SMOTE_test")
+    k_fold_cv_xgboost_SMOTE_test()
+
+    print("k_fold_cv_xgboost_undersampling_test")
+    k_fold_cv_xgboost_undersampling_test()
 
     print("Passed!")
