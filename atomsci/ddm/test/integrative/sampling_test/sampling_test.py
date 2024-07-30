@@ -224,25 +224,25 @@ if __name__=='__main__':
     print('train_valid_test_RF_SMOTE_test')
     train_valid_test_RF_SMOTE_test()
     
-    #print('train_valid_test_NN_SMOTE_test')
-    #train_valid_test_NN_SMOTE_test()
+    print('train_valid_test_NN_SMOTE_test')
+    train_valid_test_NN_SMOTE_test()
     
-    #print("train_valid_test_RF_undersampling_test")
-    #train_valid_test_RF_undersampling_test()
+    print("train_valid_test_RF_undersampling_test")
+    train_valid_test_RF_undersampling_test()
     
-    #print("train_valid_test_NN_undersampling_test")
-    #train_valid_test_NN_undersampling_test()
+    print("train_valid_test_NN_undersampling_test")
+    train_valid_test_NN_undersampling_test()
     
-    #print("kfold_cv_NN_SMOTE_test")
-    #k_fold_cv_NN_SMOTE_test()
+    print("kfold_cv_NN_SMOTE_test")
+    k_fold_cv_NN_SMOTE_test()
 
-    #print("kfold_cv_NN_undersampling_test")
-    #k_fold_cv_NN_undersampling_test()
+    print("kfold_cv_NN_undersampling_test")
+    k_fold_cv_NN_undersampling_test()
 
-    #print("kfold_cv_RF_SMOTE_test")
-    #k_fold_cv_RF_SMOTE_test()
+    print("kfold_cv_RF_SMOTE_test")
+    k_fold_cv_RF_SMOTE_test()
 
-    #print("kfold_cv_RF_undersampling_test")
-    #k_fold_cv_RF_undersampling_test()
+    print("kfold_cv_RF_undersampling_test")
+    k_fold_cv_RF_undersampling_test()
 
     print("Passed!")
