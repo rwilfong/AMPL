@@ -32,6 +32,8 @@ from atomsci.ddm.pipeline import featurization as feat
 from atomsci.ddm.pipeline import parameter_parser as parse
 from atomsci.ddm.pipeline import model_tracker as trkr
 from atomsci.ddm.pipeline import transformations as trans
+from atomsci.ddm.pipeline import sampling as sample
+from atomsci.ddm.pipeline import random_seed as rs
 
 logging.basicConfig(format='%(asctime)-15s %(message)s')
 
@@ -61,7 +63,7 @@ def calc_AD_kmean_dist(train_dset, pred_dset, k, train_dset_pair_distance=None, 
 
 # ---------------------------------------------
 def calc_AD_kmean_local_density(train_dset, pred_dset, k, train_dset_pair_distance=None, dist_metric="euclidean"):
-    """Evaluate the AD of pred data by comparing the distance betweenthe unseen object and its k nearest neighbors in the training set to the distance between these k nearest neighbors and their k nearest neighbors in the training set. Return the distance ratio. Greater than 1 means the pred data is far from the domain."""
+    """Evaluate the AD of pred data by comparing the distance betweenthe unseen object and its k nearest neighbors in the training set to the distance between these k nearest neighbors and their k nearest neighbors in thed training set. Return the distance ratio. Greater than 1 means the pred data is far from the domain."""
     if train_dset_pair_distance is None:
         # calculate the pair-wise distance of training set
         train_dset_pair_distance = pairwise_distances(X=train_dset, metric=dist_metric)
@@ -154,7 +156,7 @@ class ModelPipeline:
             data (ModelDataset object): A data object that featurizes and splits the dataset
     """
 
-    def __init__(self, params, ds_client=None, mlmt_client=None):
+    def __init__(self, params, ds_client=None, mlmt_client=None, random_state=None, seed=None):
         """Initializes ModelPipeline object.
 
         Args:
@@ -183,12 +185,30 @@ class ModelPipeline:
                 mlmt_client: The mlmt service
 
                 metric_type (str): Defines the type of metric (e.g. roc_auc_score, r2_score)
+
         """
         self.params = params
         self.log = logging.getLogger('ATOM')
         self.run_mode = 'training'  # default, can be overridden later
         self.start_time = time.time()
 
+        # initialize seed
+        if seed is None:
+            seed = getattr(params, 'seed', None)
+            self.random_gen = rs.RandomStateGenerator(params, seed)
+            self.seed = self.random_gen.get_seed()
+        else:
+            # pass the seed into the RandomStateGenerator
+            self.random_gen = rs.RandomStateGenerator(seed)
+            self.seed = self.random_gen.get_seed()
+        
+        if random_state is None:
+            self.random_state = self.random_gen.get_random_state()
+        else:
+            self.random_state = random_state
+        
+        self.log.info('Initiating ModelPipeline with seed {}'.format(self.seed))
+        
         # Default dataset_name parameter from dataset_key
         if params.dataset_name is None:
             self.params.dataset_name = build_dataset_name(self.params.dataset_key)
@@ -237,7 +257,7 @@ class ModelPipeline:
 
         # ****************************************************************************************
 
-    def load_featurize_data(self, params=None):
+    def load_featurize_data(self, params=None, random_state=None, seed=None):
         """Loads the dataset from the datastore or the file system and featurizes it. If we are training
         a new model, split the dataset into training, validation and test sets.
 
@@ -248,6 +268,7 @@ class ModelPipeline:
         Args:
             params (Namespace): Optional set of parameters to be used for featurization; by default this function
             uses the parameters used when the pipeline was created.
+            seed (int): Optional random seed for reproducibility 
 
         Side effects:
             Sets the following attributes of the ModelPipeline
@@ -256,20 +277,24 @@ class ModelPipeline:
         """
         if params is None:
             params = self.params
+        
         self.data = model_datasets.create_model_dataset(params, self.featurization, self.ds_client)
         self.data.get_featurized_data(params)
 
         if self.run_mode == 'training':
-            # Ignore prevoiusly split if in production mode
+            # Ignore previously split if in production mode
             if params.production:
                 # if in production mode, make a new split do not load
                 self.log.info('Training in production mode. Ignoring '
                     'previous split and creating production split. '
                     'Production split will not be saved.')
-                self.data.split_dataset()
-            elif not (params.previously_split and self.data.load_presplit_dataset()):
-                self.data.split_dataset()
+                self.data.split_dataset(random_state=self.random_state, seed=self.seed)
+            elif not (params.previously_split and self.data.load_presplit_dataset(random_state=self.random_state, seed=self.seed)):
+                self.data.split_dataset(random_state=self.random_state, seed=self.seed)
                 self.data.save_split_dataset()
+                # write the metadata 
+                self.create_split_metadata()
+                self.save_split_metadata()
             if self.data.params.prediction_type == 'classification':
                 self.data._validate_classification_dataset()
         # We now create transformers after splitting, to allow for the case where the transformer
@@ -282,11 +307,12 @@ class ModelPipeline:
 
         if self.run_mode == 'training':
             for i, (train, valid) in enumerate(self.data.train_valid_dsets):
+                if self.data.params.prediction_type == 'classification' and self.params.sampling_method is not None:
+                    train = sample.apply_sampling_method(train, params, random_state=self.random_state, seed=self.seed)
                 train = self.model_wrapper.transform_dataset(train)
                 valid = self.model_wrapper.transform_dataset(valid)
                 self.data.train_valid_dsets[i] = (train, valid)
             self.data.test_dset = self.model_wrapper.transform_dataset(self.data.test_dset)
-
         # ****************************************************************************************
 
     def create_model_metadata(self):
@@ -340,8 +366,16 @@ class ModelPipeline:
             time_generated=time.time(),
             save_results=self.params.save_results,
             hyperparam_uuid=self.params.hyperparam_uuid,
-            ampl_version=mu.get_ampl_version()
+            ampl_version=mu.get_ampl_version(),
+            search_type=self.params.search_type
         )
+        # add in sampling method parameters for documentation/reproducibility
+        if self.params.sampling_method is not None:
+            model_params['sampling_method'] = self.params.sampling_method
+        if self.params.sampling_ratio is not None:
+            model_params['sampling_ratio'] = self.params.sampling_ratio
+        if self.params.sampling_k_neighbors is not None:
+            model_params['sampling_k_neighbors'] = self.params.sampling_k_neighbors
 
         splitting_metadata = self.data.get_split_metadata()
         model_metadata = dict(
@@ -361,7 +395,10 @@ class ModelPipeline:
         for key, data in trans.get_transformer_specific_metadata(self.params).items():
             model_metadata[key] = data
 
+        model_metadata['seed'] = self.seed
+        
         self.model_metadata = model_metadata
+        
 
     # ****************************************************************************************
     def save_model_metadata(self, retries=5, sleep_sec=60):
@@ -412,6 +449,27 @@ class ModelPipeline:
             # If not using the model tracker, save the model state and metadata in a tarball in the filesystem
             trkr.save_model_tarball(self.output_dir, self.params.model_tarball_path)
         self.model_wrapper._clean_up_excess_files(self.model_wrapper.model_dir)
+   # ****************************************************************************************
+    def create_split_metadata(self):
+        """Creates metadata for each split dataset. 
+        It will save the seed used to create the split dataset and relevant parameters."""
+        self.split_data = dict(
+            dataset_key = self.params.dataset_key,
+            id_col = self.params.id_col, 
+            smiles_col = self.params.smiles_col, 
+            response_cols = self.params.response_cols,
+            seed = self.seed
+        )
+        self.splitting_metadata = self.data.get_split_metadata() 
+        self.split_data['splitting_metadata'] = self.splitting_metadata
+
+    # ****************************************************************************************
+    def save_split_metadata(self):
+        out_file = os.path.join(self.output_dir, 'split_metadata.json')
+ 
+        with open(out_file, 'w') as out:
+            json.dump(self.split_data, out, sort_keys=True, indent=4, separators=(',', ': '))
+            out.write("\n")
 
     # ****************************************************************************************
     def create_prediction_metadata(self, prediction_results):
@@ -517,7 +575,7 @@ class ModelPipeline:
 
     # ****************************************************************************************
 
-    def split_dataset(self, featurization=None):
+    def split_dataset(self, featurization=None, random_state=None, seed=None):
         """Load, featurize and split the dataset according to the current model parameter settings,
         but don't actually train a model. Returns the split_uuid for the dataset split.
 
@@ -531,6 +589,7 @@ class ModelPipeline:
         self.run_mode = 'training'
         self.params.split_only = True
         self.params.previously_split = False
+
         if featurization is None:
             featurization = feat.create_featurization(self.params)
         self.featurization = featurization
@@ -540,7 +599,7 @@ class ModelPipeline:
 
     # ****************************************************************************************
 
-    def train_model(self, featurization=None):
+    def train_model(self, featurization=None, random_state=None, seed=None):
         """Build model described by self.params on the training dataset described by self.params.
 
         Generate predictions for the training, validation, and test datasets, and save the predictions and
@@ -557,7 +616,7 @@ class ModelPipeline:
                 featurization (Featurization object): The featurization argument or the featurization created from the
                 input parameters
 
-                model_wrapper (ModelWrapper objct): A model wrapper created from the parameters and featurization object.
+                model_wrapper (ModelWrapper object): A model wrapper created from the parameters and featurization object.
 
                 model_metadata (dict): The model metadata dictionary that stores the model metrics and metadata
         """
@@ -573,8 +632,10 @@ class ModelPipeline:
         self.featurization = featurization
 
         ## create model wrapper if not split_only
+        
         if not self.params.split_only:
-            self.model_wrapper = model_wrapper.create_model_wrapper(self.params, self.featurization, self.ds_client)
+            self.model_wrapper = model_wrapper.create_model_wrapper(self.params, self.featurization, self.ds_client,
+                                                                    random_state=self.random_state, seed=self.seed)
             self.model_wrapper.setup_model_dirs()
 
         self.load_featurize_data()
@@ -582,9 +643,7 @@ class ModelPipeline:
         ## return if split only
         if self.params.split_only:
             return
-
         self.model_wrapper.train(self)
-
         # Create the metadata for the trained model
         self.create_model_metadata()
         # Save the performance metrics for each training data subset, for the best epoch
@@ -610,7 +669,6 @@ class ModelPipeline:
         self.save_model_metadata()
         self.orig_params = self.params
 
-
     # ****************************************************************************************
     def run_predictions(self, featurization=None):
         """Instantiate a previously trained model, and use it to run predictions on a new dataset.
@@ -632,8 +690,9 @@ class ModelPipeline:
         """
 
         self.run_mode = 'prediction'
+
         if featurization is None:
-            featurization = feat.create_featurization(self.params)
+            featurization = feat.create_featurization(self.params) 
         self.featurization = featurization
         # Load the dataset to run predictions on and featurize it
         self.load_featurize_data()
@@ -731,6 +790,7 @@ class ModelPipeline:
         logger = logging.getLogger('ATOM')
         orig_log_level = logger.getEffectiveLevel()
         logger.setLevel(orig_log_level)
+
         if not verbose:
             os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
             logger.setLevel(logging.CRITICAL)
@@ -754,8 +814,8 @@ class ModelPipeline:
         return res
 
     # ****************************************************************************************
-    def predict_full_dataset(self, dset_df, is_featurized=False, contains_responses=False, dset_params=None, AD_method=None, k=5, dist_metric="euclidean",
-                             max_train_records_for_AD=1000):
+    def predict_full_dataset(self, dset_df, is_featurized=False, contains_responses=False, dset_params=None, AD_method=None, k=5, dist_metric="euclidean", max_train_records_for_AD=1000):
+        
         """Compute predicted responses from a pretrained model on a set of compounds listed in
         a data frame. The data frame should contain, at minimum, a column of compound IDs; if
         SMILES strings are needed to compute features, they should be provided as well. Feature
@@ -806,7 +866,7 @@ class ModelPipeline:
             The result data frame may not include all the compounds in the input dataset, because
             the featurizer may not be able to featurize all of them.
         """
-
+        
         self.run_mode = 'prediction'
         self.featurization = self.model_wrapper.featurization
 

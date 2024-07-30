@@ -10,6 +10,7 @@ from atomsci.ddm.utils.struct_utils import base_smiles_from_smiles
 def predict_from_tracker_model(model_uuid, collection, input_df, id_col='compound_id', smiles_col='rdkit_smiles',
                      response_col=None, conc_col=None, is_featurized=False, dont_standardize=False, AD_method=None, k=5, 
                      dist_metric="euclidean", max_train_records_for_AD=1000, verbose=None):
+
     """Loads a pretrained model from the model tracker database and runs predictions on compounds in an input
     data frame.
 
@@ -69,6 +70,7 @@ def predict_from_tracker_model(model_uuid, collection, input_df, id_col='compoun
         For proper AD index calculation, the original data column names must be the same for the new data.
     """
     input_df, pred_params = _prepare_input_data(input_df, id_col, smiles_col, response_col, conc_col, dont_standardize, verbose)
+
     has_responses = ('response_cols' in pred_params)
     pred_params = parse.wrapper(pred_params)
     pipe = mp.create_prediction_pipeline(pred_params, model_uuid, collection)

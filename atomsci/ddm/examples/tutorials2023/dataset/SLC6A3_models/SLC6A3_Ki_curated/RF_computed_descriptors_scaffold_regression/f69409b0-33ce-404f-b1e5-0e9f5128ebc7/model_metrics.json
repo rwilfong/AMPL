@@ -1,0 +1,120 @@
+[
+    {
+        "input_dataset": {
+            "bucket": "public",
+            "dataset_hash": "6566fc2961b79a5ee86d7b2731e4bda8",
+            "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/examples/tutorials2023/dataset/SLC6A3_Ki_curated.csv",
+            "dataset_metadata": {},
+            "dataset_oid": null,
+            "datastore": false,
+            "external_export_parameters": {
+                "result_dir": "dataset/SLC6A3_models"
+            },
+            "feature_transform_type": "normalization",
+            "id_col": "compound_id",
+            "production": false,
+            "response_cols": [
+                "avg_pKi"
+            ],
+            "response_transform_type": "normalization",
+            "smiles_col": "base_rdkit_smiles",
+            "weight_transform_type": null
+        },
+        "label": "best",
+        "metrics_type": "training",
+        "model_uuid": "f69409b0-33ce-404f-b1e5-0e9f5128ebc7",
+        "prediction_results": {
+            "mae_score": 0.1976938875199614,
+            "mean_response_vals": [
+                6.456739778198105
+            ],
+            "num_compounds": 1273,
+            "r2_score": 0.9499186385851114,
+            "rms_score": 0.2773884818787501,
+            "std_response_vals": [
+                1.2395109296075018
+            ]
+        },
+        "subset": "train",
+        "time_run": 1716230221.679656
+    },
+    {
+        "input_dataset": {
+            "bucket": "public",
+            "dataset_hash": "6566fc2961b79a5ee86d7b2731e4bda8",
+            "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/examples/tutorials2023/dataset/SLC6A3_Ki_curated.csv",
+            "dataset_metadata": {},
+            "dataset_oid": null,
+            "datastore": false,
+            "external_export_parameters": {
+                "result_dir": "dataset/SLC6A3_models"
+            },
+            "feature_transform_type": "normalization",
+            "id_col": "compound_id",
+            "production": false,
+            "response_cols": [
+                "avg_pKi"
+            ],
+            "response_transform_type": "normalization",
+            "smiles_col": "base_rdkit_smiles",
+            "weight_transform_type": null
+        },
+        "label": "best",
+        "metrics_type": "training",
+        "model_uuid": "f69409b0-33ce-404f-b1e5-0e9f5128ebc7",
+        "prediction_results": {
+            "mae_score": 0.7428785893850232,
+            "mean_response_vals": [
+                6.360458391694242
+            ],
+            "model_choice_score": 0.4726187753887905,
+            "num_compounds": 273,
+            "r2_score": 0.4726187753887905,
+            "rms_score": 0.9310322892716312,
+            "std_response_vals": [
+                1.282042466118574
+            ]
+        },
+        "subset": "valid",
+        "time_run": 1716230221.679656
+    },
+    {
+        "input_dataset": {
+            "bucket": "public",
+            "dataset_hash": "6566fc2961b79a5ee86d7b2731e4bda8",
+            "dataset_key": "/Users/rwilfong/Downloads/2024_LLNL/fork_ampl/AMPL/atomsci/ddm/examples/tutorials2023/dataset/SLC6A3_Ki_curated.csv",
+            "dataset_metadata": {},
+            "dataset_oid": null,
+            "datastore": false,
+            "external_export_parameters": {
+                "result_dir": "dataset/SLC6A3_models"
+            },
+            "feature_transform_type": "normalization",
+            "id_col": "compound_id",
+            "production": false,
+            "response_cols": [
+                "avg_pKi"
+            ],
+            "response_transform_type": "normalization",
+            "smiles_col": "base_rdkit_smiles",
+            "weight_transform_type": null
+        },
+        "label": "best",
+        "metrics_type": "training",
+        "model_uuid": "f69409b0-33ce-404f-b1e5-0e9f5128ebc7",
+        "prediction_results": {
+            "mae_score": 0.7285305324030972,
+            "mean_response_vals": [
+                6.341324654958901
+            ],
+            "num_compounds": 273,
+            "r2_score": 0.43617420361372106,
+            "rms_score": 0.8834927592915721,
+            "std_response_vals": [
+                1.1766045502020457
+            ]
+        },
+        "subset": "test",
+        "time_run": 1716230221.679656
+    }
+]

@@ -79,13 +79,15 @@ def create_feature_transformers(params, model_dataset):
 
     Returns:
         (list of DeepChem transformer objects): list of transformers for the feature matrix
+
     """
     if params.feature_transform_type == 'umap':
         # Map feature vectors using UMAP for dimension reduction
         if model_dataset.split_strategy == 'k_fold_cv':
             log.warning("Warning: UMAP transformation may produce misleading results when used with K-fold split strategy.")
         train_dset = model_dataset.train_valid_dsets[0][0]
-        transformers_x = [UMAPTransformer(params, train_dset)]
+        transformers_x = [UMAPTransformer(params, train_dset)] 
+        
     elif params.transformers==True:
         # TODO: Transformers on responses and features should be controlled only by parameters
         # response_transform_type and feature_transform_type, rather than params.transformers.
@@ -109,6 +111,7 @@ def create_weight_transformers(params, model_dataset):
 
     Returns:
         (list of DeepChem transformer objects): list of transformers for the weight matrix
+
     """
     if params.weight_transform_type == 'balancing':
         if params.prediction_type == 'classification':
@@ -160,6 +163,7 @@ class UMAPTransformer(Transformer):
             params (Namespace): Contains parameters used to instantiate the transformer.
 
             dataset (Dataset): Dataset used to "train" the projection mapping.
+
         """
 
         # TODO: decide whether to make n_epochs a parameter
@@ -180,12 +184,13 @@ class UMAPTransformer(Transformer):
                                 target_metric=target_metric,
                                 target_weight=params.umap_targ_wt,
                                 min_dist=params.umap_min_dist,
-                                n_epochs=default_n_epochs)
+                                n_epochs=default_n_epochs,
+                                ) 
         # TODO: How to deal with multitask data?
         self.mapper.fit(scaled_X, y=dataset.y.flatten())
 
     # ****************************************************************************************
-    def transform(self, dataset, parallel=False):
+    def transform(self, dataset, parallel=False): 
         return super(UMAPTransformer, self).transform(dataset, parallel=parallel)
 
     # ****************************************************************************************
@@ -210,8 +215,9 @@ class NormalizationTransformerMissingData(NormalizationTransformer):
                  transform_w=False,
                  dataset=None,
                  transform_gradients=False,
-                 move_mean=True) :
-
+                 move_mean=True,
+                 random_state=None):
+        
         if transform_X :
             X_means, X_stds = dataset.get_statistics(X_stats=True, y_stats=False)
             self.X_means = X_means
@@ -310,8 +316,9 @@ class NormalizationTransformerHybrid(NormalizationTransformer):
                  transform_y=False,
                  transform_w=False,
                  dataset=None,
-                 move_mean=True) :
-
+                 move_mean=True,
+                 random_state=None,
+                 ) :
         if transform_X :
             X_means, X_stds = dataset.get_statistics(X_stats=True, y_stats=False)
             self.X_means = X_means
@@ -340,7 +347,7 @@ class NormalizationTransformerHybrid(NormalizationTransformer):
                 dataset=dataset)
 
     def transform(self, dataset, parallel=False):
-        return dataset.transform(self)
+        return dataset.transform(self) # , seed=seed
 
     def transform_array(self, X, y, w, ids):
         """Transform the data in a set of (X, y, w) arrays."""

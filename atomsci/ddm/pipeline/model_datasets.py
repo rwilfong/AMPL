@@ -15,6 +15,7 @@ from pathlib import Path
 import getpass
 import traceback
 import sys
+from collections import defaultdict
 
 feather_supported = True
 try:
@@ -36,6 +37,8 @@ def create_model_dataset(params, featurization, ds_client=None):
         in the factory function.
 
         ds_client (Datastore client)
+
+        random_state 
 
     Returns:
         either (DatastoreDataset) or (FileDataset): instantiated ModelDataset subclass specified by params
@@ -160,7 +163,6 @@ def create_split_dataset_from_metadata(model_metadata, ds_client, save_file=Fals
     split_uuid = model_metadata.split_uuid
     dset_key = model_metadata.dataset_key
     bucket = model_metadata.bucket
-    print(dset_key)
     try:
         split_metadata = dsf.search_datasets_by_key_value('split_dataset_uuid', split_uuid, ds_client, operator='in',
                                                           bucket=bucket)
@@ -358,10 +360,12 @@ class ModelDataset(object):
         
         if params is None:
             params = self.params
+        
+        
         if params.previously_featurized:
             try:
                 self.log.debug("Attempting to load featurized dataset")
-                featurized_dset_df = self.load_featurized_data()
+                featurized_dset_df = self.load_featurized_data() 
                 if (params.max_dataset_rows > 0) and (len(featurized_dset_df) > params.max_dataset_rows):
                     featurized_dset_df = featurized_dset_df.sample(n=params.max_dataset_rows)
                 featurized_dset_df[params.id_col] = featurized_dset_df[params.id_col].astype(str)
@@ -434,7 +438,7 @@ class ModelDataset(object):
         return self.tasks is not None
 
     # ****************************************************************************************
-    def split_dataset(self):
+    def split_dataset(self, random_state=None, seed=None):
         """Splits the dataset into paired training/validation and test subsets, according to the split strategy
                 selected by the model params. For traditional train/valid/test splits, there is only one training/validation
                 pair. For k-fold cross-validation splits, there are k different train/valid pairs; the validation sets are
@@ -453,9 +457,9 @@ class ModelDataset(object):
 
         # Create object to delegate splitting to.
         if self.splitting is None:
-            self.splitting = split.create_splitting(self.params)
+            self.splitting = split.create_splitting(self.params, random_state=random_state, seed=seed)
         self.train_valid_dsets, self.test_dset, self.train_valid_attr, self.test_attr = \
-            self.splitting.split_dataset(self.dataset, self.attr, self.params.smiles_col)
+            self.splitting.split_dataset(self.dataset, self.attr, self.params.smiles_col, random_state=random_state, seed=seed)
         if self.train_valid_dsets is None:
             raise Exception("Dataset %s did not split properly" % self.dataset_name)
         if self.params.prediction_type == 'classification':
@@ -564,7 +568,7 @@ class ModelDataset(object):
         return split_df
 
     # ****************************************************************************************
-    def load_presplit_dataset(self, directory=None):
+    def load_presplit_dataset(self, directory=None, random_state=None, seed=None):
         """Loads a table of compound IDs assigned to split subsets, and uses them to split
         the currently loaded featurized dataset.
 
@@ -591,7 +595,7 @@ class ModelDataset(object):
         """
 
         # Load the split table from the datastore or filesystem
-        self.splitting = split.create_splitting(self.params)
+        self.splitting = split.create_splitting(self.params, random_state=random_state, seed=seed)
 
         try:
             split_df, split_kv = self.load_dataset_split_table(directory)
@@ -653,17 +657,51 @@ class ModelDataset(object):
         Side effects:
             Overwrites the combined_train_valid_data attribute of the ModelDataset with the combined data
         """
-        # All of the splits have the same combined train/valid data, regardless of whether we're using
-        # k-fold or train/valid/test splitting.
-        if self.combined_train_valid_data is None:
+        if len(self.train_valid_dsets)>1:
+            all_unique_ids = set()
+            df_list = []
+            X_list = []
+            y_list = []
+            w_list = []
+            for train, valid in self.train_valid_dsets:
+                train_indexes = list(range(len(train.X)))
+                train_df = pd.DataFrame(data={'X_index':train_indexes, 'ids':train.ids})
+                train_df.set_index('ids', drop=False, inplace=True)
+                valid_indexes = list(range(len(valid.X)))
+                valid_df = pd.DataFrame(data={'X_index':valid_indexes, 'ids':valid.ids})
+                valid_df.set_index('ids', drop=False, inplace=True)
+
+                new_ids = list(set(train_df.ids)-set(all_unique_ids))
+                new_train_df = train_df.loc[new_ids]
+                df_list.append(new_train_df)
+                X_list.append(train.X[new_train_df.X_index])
+                y_list.append(train.y[new_train_df.X_index])
+                w_list.append(train.w[new_train_df.X_index])
+                all_unique_ids.update(new_ids)
+
+                new_ids = list(set(valid_df.ids)-set(all_unique_ids))
+                new_valid_df = valid_df.loc[new_ids]
+                df_list.append(new_valid_df)
+                X_list.append(valid.X[new_valid_df.X_index])
+                y_list.append(valid.y[new_valid_df.X_index])
+                w_list.append(valid.w[new_valid_df.X_index])
+                all_unique_ids.update(new_ids)
+
+            combined_df = pd.concat(df_list)
+            combined_X = np.concatenate(X_list, axis=0)
+            combined_y = np.concatenate(y_list, axis=0)
+            combined_w = np.concatenate(w_list, axis=0)
+            combined_ids = combined_df.ids.values
+
+            assert len(all_unique_ids) == len(combined_df)
+        else:
             (train, valid) = self.train_valid_dsets[0]
             combined_X = np.concatenate((train.X, valid.X), axis=0)
             combined_y = np.concatenate((train.y, valid.y), axis=0)
             combined_w = np.concatenate((train.w, valid.w), axis=0)
             combined_ids = np.concatenate((train.ids, valid.ids))
-            self.combined_train_valid_data = NumpyDataset(combined_X, combined_y, w=combined_w, ids=combined_ids)
+        self.combined_train_valid_data = NumpyDataset(combined_X, combined_y, w=combined_w, ids=combined_ids)
         return self.combined_train_valid_data
-
     # ****************************************************************************************
 
     def has_all_feature_columns(self, dset_df):
@@ -682,7 +720,7 @@ class ModelDataset(object):
 
     # *************************************************************************************
 
-    def get_subset_responses_and_weights(self, subset, transformers):
+    def get_subset_responses_and_weights(self, subset, transformers, fold_index=None):
         """Returns a dictionary mapping compound IDs in the given dataset subset to arrays of response values
         and weights.  Used by the perf_data module under k-fold CV.
 
@@ -698,7 +736,8 @@ class ModelDataset(object):
         """
         if subset not in self.subset_response_dict:
             if subset in ('train', 'valid', 'train_valid'):
-                dataset = self.combined_training_data()
+                for fold, (train, valid) in enumerate(self.train_valid_dsets):
+                    dataset = self.combined_training_data()
             elif subset == 'test':
                 dataset = self.test_dset
             else:
@@ -805,7 +844,6 @@ class MinimalDataset(ModelDataset):
 
                 attr: A pd.dataframe containing the compound ids and smiles
         """
-
         params = self.params
         if is_featurized:
             # Input data frame already contains feature columns
@@ -1030,6 +1068,7 @@ class DatastoreDataset(ModelDataset):
         Returns:
             featurized_dset_df (pd.DataFrame): dataframe of the prefeaturized data, needs futher processing
         """
+        
         # If a dataset OID for a specific featurized dataset was provided, use it
         if self.params.dataset_oid is not None:
             # Check the tags for this OID to make sure it's really the correct prefeaturized dataset.
@@ -1197,7 +1236,7 @@ class FileDataset(ModelDataset):
             self.dataset_name = params.dataset_name
         else:
             self.dataset_name = os.path.basename(self.params.dataset_key).replace('.csv', '')
-
+            
     # ****************************************************************************************
     def load_full_dataset(self):
         """Loads the dataset from the file system.

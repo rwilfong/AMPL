@@ -30,7 +30,7 @@ split_params = ['splitter', 'split_strategy', 'split_valid_frac', 'split_test_fr
                 'mtss_train_valid_dist_weight', 'mtss_split_fraction_weight', 'mtss_num_pop',
                 'mtss_response_distr_weight']
 
-def create_splitting(params):
+def create_splitting(params, random_state=None, seed=None):
     """Factory function to create appropriate type of Splitting object, based on dataset parameters
     
     Args:
@@ -44,13 +44,12 @@ def create_splitting(params):
         Exception: If params.split_strategy not in ['train_valid_test','k_fold_cv']. Unsupported split strategy
         
     """
-
     if params.production:
-        return ProductionSplitting(params)
+        return ProductionSplitting(params, random_state=random_state, seed=seed)
     elif params.split_strategy == 'train_valid_test':
-        return TrainValidTestSplitting(params)
+        return TrainValidTestSplitting(params, random_state=random_state, seed=seed)
     elif params.split_strategy == 'k_fold_cv':
-        return KFoldSplitting(params)
+        return KFoldSplitting(params, random_state=random_state, seed=seed)
     else:
         raise Exception("Unknown split strategy %s" % params.split_strategy)
 
@@ -175,7 +174,7 @@ class Splitting(object):
 
     """
 
-    def __init__(self, params):
+    def __init__(self, params, random_state=None, seed=None):
         """Constructor, also serves as a factory method for creating the associated DeepChem splitter object
 
         Args:
@@ -196,6 +195,9 @@ class Splitting(object):
                 splitter (Deepchem split object): A splitting object of the subtype specified by split
 
         """
+        self.random_state = random_state
+        self.seed = seed
+        
         self.params = params
         self.split = params.splitter
         if params.splitter == 'index':
@@ -231,9 +233,11 @@ class Splitting(object):
                 id_col = params.id_col
             self.splitter = TemporalSplitter(cutoff_date=params.cutoff_date,
                     date_col=params.date_col,
-                    base_splitter=params.base_splitter, metric=metric)
+                    base_splitter=params.base_splitter, metric=metric, random_state=random_state, seed=seed)
         else:
             raise Exception("Unknown splitting method %s" % params.splitter)
+
+        
 
     # ****************************************************************************************
     def get_split_prefix(self, parent=''):
@@ -283,7 +287,7 @@ class KFoldSplitting(Splitting):
 
     """
 
-    def __init__(self, params):
+    def __init__(self, params, random_state=None, seed=None):
         """Initialization method for KFoldSplitting.
 
                 Sets the following attributes for KFoldSplitting:
@@ -296,8 +300,10 @@ class KFoldSplitting(Splitting):
            num_folds (int): The number of k-fold splits to perform
 
         """
-        super().__init__(params)
+        super().__init__(params,  random_state, seed)
         self.num_folds = params.num_folds
+        self.random_state = random_state
+        self.seed = seed
 
     # ****************************************************************************************
 
@@ -318,7 +324,7 @@ class KFoldSplitting(Splitting):
         return "%s%d_fold_cv_%s" % (parent, self.num_folds, self.split)
 
     # ****************************************************************************************
-    def split_dataset(self, dataset, attr_df, smiles_col):
+    def split_dataset(self, dataset, attr_df, smiles_col, random_state=None, seed=None):
         #smiles_col is a hack for now until deepchem fixes their scaffold and butina splitters
         """Splits dataset into training, testing and validation sets.
 
@@ -355,8 +361,9 @@ class KFoldSplitting(Splitting):
         # SMILES depending on the call to self.needs_smiles(). Later expand_selection
         # will expect SMILES or compound_ids in dataset.ids depending on needs_smiles
         # passed into the constructor
+        
         dm = DatasetManager(dataset=dataset, attr_df=attr_df, smiles_col=smiles_col,
-            needs_smiles=self.needs_smiles())
+            needs_smiles=self.needs_smiles()) #, random_state=random_state, seed=seed
         dataset = dm.compact_dataset()
 
         # Under k-fold CV, the training/validation splits are determined by num_folds; only the test set fraction
@@ -366,14 +373,16 @@ class KFoldSplitting(Splitting):
 
         # Use DeepChem train_test_split() to select held-out test set; then use k_fold_split on the
         # training set to split it into training/validation folds.
+
+        # Pass a seed into the deepchem splitter. Not sure if i can do it for the k_fold_splitter, maybe as the kwargs. 
         if self.split == 'butina':
-            train_cv, test, _ = self.splitter.train_valid_test_split(dataset)
+            train_cv, test, _ = self.splitter.train_valid_test_split(dataset, seed=seed)
             self.splitter = dc.splits.ScaffoldSplitter()
-            train_cv_pairs = self.splitter.k_fold_split(train_cv, self.num_folds)
+            train_cv_pairs = self.splitter.k_fold_split(train_cv, self.num_folds, seed=seed)
         else:
             # TODO: Add special handling for AVE splitter
-            train_cv, test = self.splitter.train_test_split(dataset, frac_train=train_frac)
-            train_cv_pairs = self.splitter.k_fold_split(train_cv, self.num_folds)
+            train_cv, test = self.splitter.train_test_split(dataset, frac_train=train_frac, seed=seed)
+            train_cv_pairs = self.splitter.k_fold_split(train_cv, self.num_folds, seed=seed)
 
         train_valid_dsets = []
         train_valid_attr = []
@@ -406,7 +415,7 @@ class TrainValidTestSplitting(Splitting):
 
     """
 
-    def __init__(self, params):
+    def __init__(self, params, random_state=None, seed=None):
         """Initialization method for TrainValidTestSplitting.
 
                 Sets the following attributes for TrainValidTestSplitting:
@@ -419,8 +428,10 @@ class TrainValidTestSplitting(Splitting):
            num_folds (int): The number of k-fold splits to perform. In this case, it is always set to 1
 
         """
-        super().__init__(params)
+        super().__init__(params, random_state, seed)
         self.num_folds = 1
+        self.random_state = random_state
+        self.seed = seed
 
     # ****************************************************************************************
     def get_split_prefix(self, parent=''):
@@ -441,7 +452,7 @@ class TrainValidTestSplitting(Splitting):
 
     # ****************************************************************************************
 
-    def split_dataset(self, dataset, attr_df, smiles_col):
+    def split_dataset(self, dataset, attr_df, smiles_col, random_state=None, seed=None):
         #smiles_col is a hack for now until deepchem fixes their scaffold and butina splitters
         """Splits dataset into training, testing and validation sets.
 
@@ -487,17 +498,18 @@ class TrainValidTestSplitting(Splitting):
         # SMILES depending on the call to self.needs_smiles(). Later expand_selection
         # will expect SMILES or compound_ids in dataset.ids depending on needs_smiles
         # passed into the constructor
+        
         dm = DatasetManager(dataset=dataset, attr_df=attr_df, smiles_col=smiles_col,
-            needs_smiles=self.needs_smiles())
+            needs_smiles=self.needs_smiles()) # , random_state=random_state, seed=seed
         dataset = dm.compact_dataset()
 
         if self.split == 'butina':
             # Can't use train_test_split with Butina because Butina splits into train and valid sets only.
-            train_valid, test, _ = self.splitter.train_valid_test_split(dataset)
+            train_valid, test, _ = self.splitter.train_valid_test_split(dataset, seed=seed)
             self.splitter = dc.splits.ScaffoldSplitter()
             # With Butina splitting, we don't have control over the size of the test set
             train_frac = 1.0 - self.params.split_valid_frac
-            train, valid = self.splitter.train_test_split(train_valid, frac_train=train_frac)
+            train, valid = self.splitter.train_test_split(train_valid, frac_train=train_frac, seed=seed)
         elif self.split == 'ave_min':
             # AVEMinSplitter also only does train-valid splits, but at least nested splits seem to work.
             # TODO: Change this if we modify AVE splitter to do 3-way splits internally.
@@ -506,18 +518,18 @@ class TrainValidTestSplitting(Splitting):
             log.info("Performing split for test set")
             train_valid, test, _ = self.splitter.train_valid_test_split(dataset, frac_train=train_valid_frac, 
                                                                         frac_valid=self.params.split_test_frac,
-                                                                        frac_test=0.0)
+                                                                        frac_test=0.0, seed=seed)
             log.info("Performing split of training and validation sets")
             train, valid, _ = self.splitter.train_valid_test_split(train_valid, frac_train=train_frac/train_valid_frac, 
                                                                    frac_valid=self.params.split_valid_frac/train_valid_frac,
-                                                                   frac_test=0.0)
+                                                                   frac_test=0.0, seed=seed)
             log.info("Results of 3-way split: %d training, %d validation, %d test compounds" % (
                      train.X.shape[0], valid.X.shape[0], test.X.shape[0]))
         elif self.split == 'temporal':
             # TemporalSplitter requires that we pass attr_df so it can get the dates for each compound
             train_frac = 1.0 - self.params.split_valid_frac
             train, valid, test = self.splitter.train_valid_test_split(dataset, attr_df=attr_df,
-                                frac_train=train_frac, frac_valid=self.params.split_valid_frac)
+                                frac_train=train_frac, frac_valid=self.params.split_valid_frac, seed=seed)
         elif self.split == 'multitaskscaffold':
             # perform multitask scaffold split
             train_frac = 1.0 - self.params.split_valid_frac - self.params.split_test_frac
@@ -532,11 +544,12 @@ class TrainValidTestSplitting(Splitting):
                 response_distr_fitness_weight=self.params.mtss_response_distr_weight,
                 num_super_scaffolds=self.params.mtss_num_super_scaffolds,
                 num_pop=self.params.mtss_num_pop,
-                num_generations=self.params.mtss_num_generations)
+                num_generations=self.params.mtss_num_generations,
+                seed=seed)
         else:
             train_frac = 1.0 - self.params.split_valid_frac - self.params.split_test_frac
             train, valid, test = self.splitter.train_valid_test_split(dataset, 
-                frac_train=train_frac, frac_valid=self.params.split_valid_frac, frac_test=self.params.split_test_frac)
+                frac_train=train_frac, frac_valid=self.params.split_valid_frac, frac_test=self.params.split_test_frac, seed=seed)
 
         # After splitting unique compound_ids or SMILES are expanded 
         train, train_attr = dm.expand_selection(train.ids)
@@ -551,8 +564,9 @@ class TrainValidTestSplitting(Splitting):
 
 class ProductionSplitter(dc.splits.Splitter):
     def split(
-            self, dataset, frac_train=1, frac_valid=1, frac_test=1, seed=None, log_every_n = None
+            self, dataset, frac_train=1, frac_valid=1, frac_test=1, log_every_n = None
     ):
+        # seed=None,
         """We implement a production run as having a split that contains all samples in every subset"""
         num_datapoints = len(dataset)
         return (list(range(num_datapoints)), list(range(num_datapoints)), list(range(num_datapoints)))
@@ -561,10 +575,12 @@ class ProductionSplitter(dc.splits.Splitter):
 # ****************************************************************************************
 
 class ProductionSplitting(Splitting):
-    def __init__(self, params):
+    def __init__(self, params, random_state=None, seed=None):
         """This Splitting only does one thing and ignores all splitter parameters"""
         self.splitter = ProductionSplitter()
         self.split = 'production'
+        self.random_state=random_state
+        self.seed = seed 
 
     # ****************************************************************************************
     def get_split_prefix(self, parent=''):
@@ -584,7 +600,7 @@ class ProductionSplitting(Splitting):
         return "%sproduction_%s" % (parent, self.split)
 
     # ****************************************************************************************
-    def split_dataset(self, dataset, attr_df, smiles_col):
+    def split_dataset(self, dataset, attr_df, smiles_col, random_state=None, seed=None):
         """Splits dataset into training, testing and validation sets.
         This should contain the entire dataset in each subset
 
@@ -621,10 +637,11 @@ class ProductionSplitting(Splitting):
         # SMILES depending on the call to self.needs_smiles(). Later expand_selection
         # will expect SMILES or compound_ids in dataset.ids depending on needs_smiles
         # passed into the constructor
+        
         dm = DatasetManager(dataset=dataset, attr_df=attr_df, smiles_col=smiles_col,
-            needs_smiles=self.needs_smiles())
+            needs_smiles=self.needs_smiles()) # , random_state=random_state, seed=seed
         dataset = dm.compact_dataset()
-        train, valid, test = self.splitter.train_valid_test_split(dataset)
+        train, valid, test = self.splitter.train_valid_test_split(dataset, seed=seed)
         
         # After splitting unique compound_ids or SMILES are expanded 
         train, train_attr = dm.expand_selection(train.ids)
@@ -666,6 +683,7 @@ class DatasetManager:
             attr_df (Pandas DataFrame): dataframe containing SMILES strings indexed by compound IDs,
 
             smiles_col (string): name of SMILES column (hack for now until deepchem fixes scaffold and butina splitters)
+
         """
         self.dataset_ori = copy.deepcopy(dataset)
         self.attr_df = attr_df

@@ -52,6 +52,8 @@ from atomsci.ddm.pipeline import transformations as trans
 from atomsci.ddm.pipeline import perf_data as perf
 import atomsci.ddm.pipeline.parameter_parser as pp
 
+from atomsci.ddm.pipeline import sampling as sample
+
 from tensorflow.python.keras.utils.layer_utils import count_params
 
 logging.basicConfig(format='%(asctime)-15s %(message)s')
@@ -171,7 +173,7 @@ def all_bases(model):
     return result
 
 # ****************************************************************************************
-def create_model_wrapper(params, featurizer, ds_client=None):
+def create_model_wrapper(params, featurizer, ds_client=None, random_state=None, seed=None):
     """Factory function for creating Model objects of the correct subclass for params.model_type.
 
     Args:
@@ -180,20 +182,21 @@ def create_model_wrapper(params, featurizer, ds_client=None):
         featurizer (Featurization): Object managing the featurization of compounds
 
         ds_client (DatastoreClient): Interface to the file datastore
-
+        
     Returns:
         model (pipeline.Model): Wrapper for DeepChem, sklearn or other model.
 
     Raises:
         ValueError: Only params.model_type = 'NN', 'RF' or 'xgboost' is supported.
     """
+    
     if params.model_type == 'NN':
         if params.featurizer == 'graphconv':
-            return GraphConvDCModelWrapper(params, featurizer, ds_client)
+            return GraphConvDCModelWrapper(params, featurizer, ds_client , random_state=random_state, seed=seed)
         else:
-            return MultitaskDCModelWrapper(params, featurizer, ds_client)
+            return MultitaskDCModelWrapper(params, featurizer, ds_client , random_state=random_state, seed=seed)
     elif params.model_type == 'RF':
-        return DCRFModelWrapper(params, featurizer, ds_client)
+        return DCRFModelWrapper(params, featurizer, ds_client , random_state=random_state, seed=seed)
     elif params.model_type == 'xgboost':
         if not xgboost_supported:
             raise Exception("Unable to import xgboost. \
@@ -209,9 +212,9 @@ def create_model_wrapper(params, featurizer, ds_client=None):
                              installation: \
                              from pip: pip install xgboost==0.90")
         else:
-            return DCxgboostModelWrapper(params, featurizer, ds_client)
+            return DCxgboostModelWrapper(params, featurizer, ds_client , random_state=random_state, seed=seed) 
     elif params.model_type == 'hybrid':
-        return HybridModelWrapper(params, featurizer, ds_client)
+        return HybridModelWrapper(params, featurizer, ds_client , random_state=random_state, seed=seed)
     elif params.model_type in pp.model_wl:
         requested_model = pp.model_wl[params.model_type]
         bases = all_bases(requested_model)
@@ -220,9 +223,9 @@ def create_model_wrapper(params, featurizer, ds_client=None):
         if any(['TorchModel' in str(b) for b in bases]):
             if not afp_supported:
                 raise Exception("dgl and dgllife packages must be installed to use attentive_fp model.")
-            return PytorchDeepChemModelWrapper(params, featurizer, ds_client)
+            return PytorchDeepChemModelWrapper(params, featurizer, ds_client , random_state=random_state, seed=seed) 
         elif any(['KerasModel' in str(b) for b in bases]):
-            return KerasDeepChemModelWrapper(params, featurizer, ds_client)
+            return KerasDeepChemModelWrapper(params, featurizer, ds_client , random_state=random_state, seed=seed)
     else:
         raise ValueError("Unknown model_type %s" % params.model_type)
 
@@ -236,7 +239,7 @@ class ModelWrapper(object):
         Set in __init__
             params (argparse.Namespace): The argparse.Namespace parameter object that contains all parameter information
 
-            featurziation (Featurization object): The featurization object created outside of model_wrapper
+            featurization (Featurization object): The featurization object created outside of model_wrapper
 
             log (log): The logger
 
@@ -252,7 +255,7 @@ class ModelWrapper(object):
             best_model_dir (str): The subdirectory under output_dir that contains the best model. Created in setup_model_dirs
 
     """
-    def __init__(self, params, featurizer, ds_client):
+    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
         """Initializes ModelWrapper object.
 
         Args:
@@ -289,6 +292,9 @@ class ModelWrapper(object):
         self.transformers = []
         self.transformers_x = []
         self.transformers_w = []
+        
+        self.random_state = random_state
+        self.seed = seed
 
         # ****************************************************************************************
 
@@ -340,7 +346,6 @@ class ModelWrapper(object):
         # TODO: Just a warning, we may have response transformers for classification datasets in the future
         if self.params.prediction_type=='regression' and self.params.transformers==True:
             self.transformers = [trans.NormalizationTransformerMissingData(transform_y=True, dataset=model_dataset.dataset)]
-
         # ****************************************************************************************
 
     def _create_feature_transformers(self, model_dataset):
@@ -363,6 +368,7 @@ class ModelWrapper(object):
 
         Args:
             model_dataset: The ModelDataset object that handles the current dataset
+            random_state: , random_state
 
         Side effects:
             Overwrites the attributes:
@@ -373,8 +379,8 @@ class ModelWrapper(object):
                 transformers_w: A list of deepchem transformation objects on weights, only if conditions are met.
 
                 params.transformer_key: A string pointing to the dataset key containing the transformer in the datastore, or the path to the transformer
-
         """
+        
         self._create_output_transformers(model_dataset)
 
         self._create_feature_transformers(model_dataset)
@@ -442,6 +448,8 @@ class ModelWrapper(object):
         Returns:
             transformed_dataset: The transformed DeepChem DiskDataset
 
+        removed: , random_state=None, seed=None
+        
         """
         transformed_dataset = dataset
         if len(self.transformers) > 0:
@@ -486,6 +494,7 @@ class ModelWrapper(object):
             dict: A dictionary of the prediction results
 
         """
+        # look at get_pred_vals perf_data
         return perf_data.get_prediction_results()
 
         # ****************************************************************************************
@@ -513,7 +522,7 @@ class ModelWrapper(object):
             # indicate that we are training a hybrid model
             perf_data = perf.create_perf_data("hybrid", model_dataset, self.transformers, 'test', is_ki=self.params.is_ki, ki_convert_ratio=self.params.ki_convert_ratio, transformed=False)
         else:
-            perf_data = perf.create_perf_data(self.params.prediction_type, model_dataset, self.transformers, 'test', transformed=False)
+            perf_data = perf.create_perf_data(self.params.prediction_type, model_dataset, self.transformers, 'test', transformed=False) 
         test_dset = model_dataset.test_dset
         test_preds, test_stds = self.generate_predictions(test_dset)
         _ = perf_data.accumulate_preds(test_preds, test_dset.ids, test_stds)
@@ -556,7 +565,7 @@ class ModelWrapper(object):
             # indicate that we are training a hybrid model
             perf_data = perf.create_perf_data("hybrid", model_dataset, self.transformers, 'full', is_ki=self.params.is_ki, ki_convert_ratio=self.params.ki_convert_ratio, transformed=False)
         else:
-            perf_data = perf.create_perf_data(self.params.prediction_type, model_dataset, self.transformers, 'full', transformed=False)
+            perf_data = perf.create_perf_data(self.params.prediction_type, model_dataset, self.transformers, 'full', transformed=False) 
         full_preds, full_stds = self.generate_predictions(model_dataset.dataset)
         _ = perf_data.accumulate_preds(full_preds, model_dataset.dataset.ids, full_stds)
         return perf_data
@@ -758,7 +767,6 @@ class NNModelWrapper(ModelWrapper):
 
             ValueError: If subset not in ['train','valid','test','full']
         """
-
         if subset == 'full':
             return self.get_full_dataset_perf_data(self.data)
         if epoch_label == 'best':
@@ -854,7 +862,6 @@ class NNModelWrapper(ModelWrapper):
             self.train_kfold_cv(pipeline)
         else:
             self.train_with_early_stopping(pipeline)
-
     # ****************************************************************************************
     def train_kfold_cv(self, pipeline):
         """Trains a neural net model with K-fold cross-validation for a specified number of epochs.
@@ -884,15 +891,16 @@ class NNModelWrapper(ModelWrapper):
         """
         # TODO: Fix docstrings above
         num_folds = len(pipeline.data.train_valid_dsets)
+        
         self.data = pipeline.data
-
         # Create PerfData structures for computing cross-validation metrics
         em = perf.EpochManagerKFold(self,
                                 subsets={'train':'train_valid', 'valid':'valid', 'test':'test'},
                                 prediction_type=self.params.prediction_type, 
                                 model_dataset=pipeline.data, 
                                 production=self.params.production,
-                                transformers=self.transformers)
+                                transformers=self.transformers,
+                                ) 
         em.set_make_pred(lambda x: self.model.predict(x, []))
         em.on_new_best_valid(lambda : 1+1) # does not need to take any action
 
@@ -905,20 +913,23 @@ class NNModelWrapper(ModelWrapper):
 
         for ei in LCTimerKFoldIterator(self.params, pipeline, self.log):
             # Create PerfData structures that are only used within loop to compute metrics during initial training
-            train_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'train')
+            train_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'train') 
             test_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'test')
             for k in range(num_folds):
                 self.model = models[k]
                 train_dset, valid_dset = pipeline.data.train_valid_dsets[k]
-
+                
+            
                 # We turn off automatic checkpointing - we only want to save a checkpoints for the final model.
                 self.model.fit(train_dset, nb_epoch=1, checkpoint_interval=0, restore=False)
                 train_pred = self.model.predict(train_dset, [])
                 test_pred = self.model.predict(test_dset, [])
-
+                
                 train_perf = train_perf_data.accumulate_preds(train_pred, train_dset.ids)
                 test_perf = test_perf_data.accumulate_preds(test_pred, test_dset.ids)
 
+                # valid_perf_data contains both training and validation in self.pred_vals, but self.real_vals is only validation
+                
                 valid_perf = em.accumulate(ei, subset='valid', dset=valid_dset)
                 self.log.info("Fold %d, epoch %d: training %s = %.3f, validation %s = %.3f, test %s = %.3f" % (
                               k, ei, pipeline.metric_type, train_perf, pipeline.metric_type, valid_perf,
@@ -942,8 +953,8 @@ class NNModelWrapper(ModelWrapper):
 
         for ei in range(self.best_epoch+1):
             self.model.fit(fit_dataset, nb_epoch=1, checkpoint_interval=0, restore=False)
-            train_perf, test_perf = em.update_epoch(ei, train_dset=fit_dataset, test_dset=test_dset)
-
+            train_perf, test_perf = em.update_epoch(ei, train_dset=fit_dataset, test_dset=test_dset) 
+            
             self.log.info(f"Combined folds: Epoch {ei}, training {pipeline.metric_type} = {train_perf:.3},"
                          + f"test {pipeline.metric_type} = {test_perf:.3}")
 
@@ -953,8 +964,11 @@ class NNModelWrapper(ModelWrapper):
         # Only copy the model files we need, not the entire directory
         self._copy_model(self.best_model_dir)
         retrain_time = time.time() - retrain_start
-        self.log.info("Time to retrain model for %d epochs: %.1f seconds, %.1f sec/epoch" % (self.best_epoch, retrain_time, 
-                       retrain_time/self.best_epoch))
+        if self.best_epoch == 0:
+            self.log.info("Time to retrain model for %d epoch: %.1f seconds" % (self.best_epoch, retrain_time))
+        else:
+            self.log.info("Time to retrain model for %d epochs: %.1f seconds, %.1f sec/epoch" % (self.best_epoch, retrain_time,
+                                                                                                 retrain_time/self.best_epoch))
 
     # ****************************************************************************************
     def train_with_early_stopping(self, pipeline):
@@ -986,12 +1000,12 @@ class NNModelWrapper(ModelWrapper):
                 valid_epoch_perfs (np.array): A standard validation set performance metric (r2_score or roc_auc), at the end of each epoch.
         """
         self.data = pipeline.data
-
         em = perf.EpochManager(self,
                                 prediction_type=self.params.prediction_type, 
                                 model_dataset=pipeline.data, 
                                 production=self.params.production,
-                                transformers=self.transformers)
+                                transformers=self.transformers,
+                               ) 
         em.set_make_pred(lambda x: self.model.predict(x, []))
         em.on_new_best_valid(lambda : self.model.save_checkpoint())
 
@@ -1002,8 +1016,8 @@ class NNModelWrapper(ModelWrapper):
             # saved will be the one we created intentionally when we reached a new best validation score.
             self.model.fit(train_dset, nb_epoch=1, checkpoint_interval=0)
             train_perf, valid_perf, test_perf = em.update_epoch(ei,
-                                train_dset=train_dset, valid_dset=valid_dset, test_dset=test_dset)
-
+                                train_dset=train_dset, valid_dset=valid_dset, test_dset=test_dset) 
+            
             self.log.info("Epoch %d: training %s = %.3f, validation %s = %.3f, test %s = %.3f" % (
                           ei, pipeline.metric_type, train_perf, pipeline.metric_type, valid_perf,
                           pipeline.metric_type, test_perf))
@@ -1175,7 +1189,7 @@ class HybridModelWrapper(NNModelWrapper):
 
     """
 
-    def __init__(self, params, featurizer, ds_client):
+    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
         """Initializes HybridModelWrapper object.
 
         Args:
@@ -1200,7 +1214,11 @@ class HybridModelWrapper(NNModelWrapper):
 
             model: dc.models.TorchModel
         """
-        super().__init__(params, featurizer, ds_client)
+        super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed) 
+
+        self.random_state = random_state
+        self.seed = seed
+                
         if self.params.layer_sizes is None:
             if self.params.featurizer == 'ecfp':
                 self.params.layer_sizes = [1000, 500]
@@ -1407,7 +1425,7 @@ class HybridModelWrapper(NNModelWrapper):
             self.loss_func = self._poisson_hybrid_loss
         else:
             self.loss_func = self._l2_loss
-
+        
         # load hybrid data
         self._load_hybrid_data(pipeline.data)
 
@@ -1422,13 +1440,15 @@ class HybridModelWrapper(NNModelWrapper):
                                 transformers=self.transformers,
                                 is_ki=self.params.is_ki,
                                 production=self.params.production,
-                                ki_convert_ratio=self.params.ki_convert_ratio)
+                                ki_convert_ratio=self.params.ki_convert_ratio,
+                               ) 
+        
+        em.set_make_pred(lambda x: self.generate_predictions(x)[0]) 
 
-        em.set_make_pred(lambda x: self.generate_predictions(x)[0])
         # initialize ei here so we can use it in the closure
         ei = 0
         em.on_new_best_valid(lambda : self.save_model(checkpoint_file, self.model, 
-            opt, ei, self.model_dict))
+            opt, ei, self.model_dict)) 
 
         train_dset, valid_dset = pipeline.data.train_valid_dsets[0]
         if len(pipeline.data.train_valid_dsets) > 1:
@@ -1502,7 +1522,7 @@ class HybridModelWrapper(NNModelWrapper):
             raise Exception(f"Checkpoint file doesn't exist in the reload_dir {reload_dir}")
         
         # Restore the transformers from the datastore or filesystem
-        self.reload_transformers()
+        self.reload_transformers() 
 
     # ****************************************************************************************
     def generate_predictions(self, dataset):
@@ -1592,14 +1612,13 @@ class HybridModelWrapper(NNModelWrapper):
         # TODO: Just a warning, we may have response transformers for classification datasets in the future
         if self.params.prediction_type=='regression' and self.params.transformers==True:
             self.transformers = [trans.NormalizationTransformerHybrid(transform_y=True, dataset=model_dataset.dataset)]
-
 # ****************************************************************************************
 class ForestModelWrapper(ModelWrapper):
     """Wrapper class for DCRFModelWrapper and DCxgboostModelWrapper
 
     contains code that is similar between the two tree based classes
     """
-    def __init__(self, params, featurizer, ds_client):
+    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
         """Initializes DCRFModelWrapper object.
 
         Args:
@@ -1608,13 +1627,16 @@ class ForestModelWrapper(ModelWrapper):
             featurizer (Featurization): Object managing the featurization of compounds
             ds_client: datastore client.
         """
-        super().__init__(params, featurizer, ds_client)
+        super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
         self.best_model_dir = os.path.join(self.output_dir, 'best_model')
         self.model_dir = self.best_model_dir
         os.makedirs(self.best_model_dir, exist_ok=True)
 
-        self.model = self.make_dc_model(self.best_model_dir)
-
+        self.random_state = random_state
+        self.seed = seed
+        self.model = self.make_dc_model(self.best_model_dir, random_state=self.random_state, seed=self.seed)
+        
+        
     # ****************************************************************************************
     def train(self, pipeline):
         """Trains a forest model and saves the trained model.
@@ -1638,12 +1660,11 @@ class ForestModelWrapper(ModelWrapper):
 
             valid_perfs (dict): A dictionary of predicted values and metrics on the training dataset
         """
-
         self.data = pipeline.data
         self.best_epoch = None
         self.train_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers,'train')
         self.valid_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'valid')
-        self.test_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'test')
+        self.test_perf_data = perf.create_perf_data(self.params.prediction_type, pipeline.data, self.transformers, 'test') 
 
         test_dset = pipeline.data.test_dset
 
@@ -1657,9 +1678,8 @@ class ForestModelWrapper(ModelWrapper):
 
             valid_pred = self.model.predict(valid_dset, [])
             valid_perf = self.valid_perf_data.accumulate_preds(valid_pred, valid_dset.ids)
-
             test_pred = self.model.predict(test_dset, [])
-            test_perf = self.test_perf_data.accumulate_preds(test_pred, test_dset.ids)
+            test_perf = self.test_perf_data.accumulate_preds(test_pred, test_dset.ids) 
             self.log.info("Fold %d: training %s = %.3f, validation %s = %.3f, test %s = %.3f" % (
                           k, pipeline.metric_type, train_perf, pipeline.metric_type, valid_perf,
                              pipeline.metric_type, test_perf))
@@ -1682,7 +1702,7 @@ class ForestModelWrapper(ModelWrapper):
         self.best_epoch = 0
 
     # ****************************************************************************************
-    def make_dc_model(self, model_dir):
+    def make_dc_model(self, model_dir, random_state=None, seed=None):
         """Build a DeepChem model.
 
         Builds a model, wraps it in DeepChem's wrapper and returns it
@@ -1710,12 +1730,12 @@ class ForestModelWrapper(ModelWrapper):
 
         """
         # Restore the transformers from the datastore or filesystem
-        self.reload_transformers()
+        self.reload_transformers() 
         self.model = self.make_dc_model(reload_dir)
         self.model.reload()
 
     # ****************************************************************************************
-    def get_pred_results(self, subset, epoch_label=None):
+    def get_pred_results(self, subset, epoch_label=None): 
         """Returns predicted values and metrics from a training, validation or test subset
         of the current dataset, or the full dataset.
 
@@ -1759,11 +1779,10 @@ class ForestModelWrapper(ModelWrapper):
         Raises:
             ValueError: if subset not in ['train','valid','test','full']
         """
-
         if subset == 'train':
             return self.train_perf_data
         elif subset == 'valid':
-            return self.valid_perf_data
+            return self.valid_perf_data 
         elif subset == 'test':
             #return self.get_test_perf_data(self.best_model_dir, self.data)
             return self.test_perf_data
@@ -1806,7 +1825,7 @@ class DCRFModelWrapper(ForestModelWrapper):
 
     """
 
-    def __init__(self, params, featurizer, ds_client):
+    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
         """Initializes DCRFModelWrapper object.
 
         Args:
@@ -1815,10 +1834,12 @@ class DCRFModelWrapper(ForestModelWrapper):
             featurizer (Featurization): Object managing the featurization of compounds
             ds_client: datastore client.
         """
-        super().__init__(params, featurizer, ds_client)
+        super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
+        self.seed = seed
+        self.random_state = random_state
 
     # ****************************************************************************************
-    def make_dc_model(self, model_dir):
+    def make_dc_model(self, model_dir, random_state=None, seed=None):
         """Build a DeepChem model.
 
         Builds a model, wraps it in DeepChem's wrapper and returns it
@@ -1833,12 +1854,14 @@ class DCRFModelWrapper(ForestModelWrapper):
             rf_model = RandomForestRegressor(n_estimators=self.params.rf_estimators,
                                              max_features=self.params.rf_max_features,
                                              max_depth=self.params.rf_max_depth,
-                                             n_jobs=-1)
+                                             n_jobs=-1, 
+                                             random_state=self.seed)
         else:
             rf_model = RandomForestClassifier(n_estimators=self.params.rf_estimators,
                                               max_features=self.params.rf_max_features,
                                               max_depth=self.params.rf_max_depth,
-                                              n_jobs=-1)
+                                              n_jobs=-1, 
+                                              random_state=self.seed)
 
         return dc.models.sklearn_models.SklearnModel(rf_model, model_dir=model_dir)
 
@@ -1870,6 +1893,7 @@ class DCRFModelWrapper(ForestModelWrapper):
 
     # ****************************************************************************************
     def generate_predictions(self, dataset):
+
         """Generates predictions for specified dataset, as well as uncertainty values if params.uncertainty=True
 
         Args:
@@ -1957,7 +1981,7 @@ class DCxgboostModelWrapper(ForestModelWrapper):
 
     """
 
-    def __init__(self, params, featurizer, ds_client):
+    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
         """Initializes RunModel object.
 
         Args:
@@ -1966,10 +1990,12 @@ class DCxgboostModelWrapper(ForestModelWrapper):
             featurizer (Featurization): Object managing the featurization of compounds
             ds_client: datastore client.
         """
-        super().__init__(params, featurizer, ds_client)
+        super().__init__(params, featurizer, ds_client, random_state=random_state, seed=seed)
+        self.seed = seed
+        self.random_state = random_state
 
     # ****************************************************************************************
-    def make_dc_model(self, model_dir):
+    def make_dc_model(self, model_dir, random_state=None, seed=None):
         """Build a DeepChem model.
 
         Builds a model, wraps it in DeepChem's wrapper and returns it
@@ -1997,7 +2023,7 @@ class DCxgboostModelWrapper(ForestModelWrapper):
                                          reg_lambda=1,
                                          scale_pos_weight=1,
                                          base_score=0.5,
-                                         random_state=0,
+                                         random_state=self.seed, #0
                                          missing=np.nan,
                                          importance_type='gain',
                                          n_jobs=-1,
@@ -2022,7 +2048,7 @@ class DCxgboostModelWrapper(ForestModelWrapper):
                                           reg_lambda=1,
                                           scale_pos_weight=1,
                                           base_score=0.5,
-                                          random_state=0,
+                                          random_state=self.seed, # 0,
                                           importance_type='gain',
                                           missing=np.nan,
                                           gpu_id = -1,
@@ -2100,7 +2126,7 @@ class DCxgboostModelWrapper(ForestModelWrapper):
         self.best_epoch = 0
 
     # ****************************************************************************************
-    def reload_model(self, reload_dir):
+    def reload_model(self, reload_dir, random_state=None, seed=None):
 
         """Loads a saved xgboost model from the specified directory. Also loads any transformers that
         were saved with it.
@@ -2114,7 +2140,6 @@ class DCxgboostModelWrapper(ForestModelWrapper):
             Resets the value of model, transformers, transformers_x and transformers_w
 
         """
-
         if self.params.prediction_type == 'regression':
             xgb_model = xgb.XGBRegressor(max_depth=self.params.xgb_max_depth,
                                          learning_rate=self.params.xgb_learning_rate,
@@ -2132,7 +2157,7 @@ class DCxgboostModelWrapper(ForestModelWrapper):
                                          reg_lambda=1,
                                          scale_pos_weight=1,
                                          base_score=0.5,
-                                         random_state=0,
+                                         random_state=self.seed,#0,
                                          missing=np.nan,
                                          importance_type='gain',
                                          n_jobs=-1,
@@ -2157,19 +2182,19 @@ class DCxgboostModelWrapper(ForestModelWrapper):
                                          reg_lambda=1,
                                          scale_pos_weight=1,
                                          base_score=0.5,
-                                         random_state=0,
+                                         random_state=self.seed, #0,
                                          importance_type='gain',
                                          missing=np.nan,
                                          gpu_id = -1,
                                          n_jobs=-1,                                          
                                          n_gpus = 0,
-                                         max_bin = 16,
+                                         max_bin = 16, 
                                          )
 
         # Restore the transformers from the datastore or filesystem
         self.reload_transformers()
 
-        self.model = dc.models.GBDTModel(xgb_model, model_dir=self.best_model_dir)
+        self.model = dc.models.GBDTModel(xgb_model, model_dir=self.best_model_dir, random_state=self.random_state)
         self.model.reload()
 
     # ****************************************************************************************
@@ -2217,7 +2242,6 @@ class DCxgboostModelWrapper(ForestModelWrapper):
         Raises:
             ValueError: if subset not in ['train','valid','test','full']
         """
-
         if subset == 'train':
             return self.train_perf_data
         elif subset == 'valid':
@@ -2309,7 +2333,7 @@ class PytorchDeepChemModelWrapper(NNModelWrapper):
             valid_perfs (dict): A dictionary of predicted values and metrics on the validation dataset
 
     """
-    def __init__(self, params, featurizer, ds_client):
+    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
         """Initializes AttentiveFPModelWrapper object. Creates the underlying DeepChem AttentiveFPModel instance.
 
         Args:
@@ -2319,11 +2343,12 @@ class PytorchDeepChemModelWrapper(NNModelWrapper):
             ds_client: datastore client.
         """
         # use NNModelWrapper init. 
-        super().__init__(params, featurizer, ds_client)
+        super().__init__(params, featurizer, ds_client, random_state, seed)
         self.num_epochs_trained = 0
-
+        self.seed=seed
+        self.random_state=random_state
         self.model = self.recreate_model()
-
+        
     # ****************************************************************************************
     def recreate_model(self, **kwargs):
         """Creates a new DeepChem Model object of the correct type for the requested featurizer and prediction type
@@ -2343,13 +2368,14 @@ class PytorchDeepChemModelWrapper(NNModelWrapper):
         extracted_features.update(kwargs)
 
         chosen_model = pp.model_wl[self.params.model_type]
+        
         self.log.info(f'Args passed to {chosen_model}:{str(extracted_features)}')
 
-        # build the model
         model = chosen_model(
+                random_state=self.random_state,
+                seed=self.seed,
                 **extracted_features
             ) 
-
         return model
 
     # ****************************************************************************************
@@ -2483,6 +2509,7 @@ class MultitaskDCModelWrapper(PytorchDeepChemModelWrapper):
         if self.params.prediction_type == 'regression':
 
             # TODO: Need to check that MultitaskRegressor params are actually being used
+            # Dont think I can pass a seed through this
             model = MultitaskRegressor(
                 self.params.num_model_tasks,
                 n_features,
@@ -2501,7 +2528,8 @@ class MultitaskDCModelWrapper(PytorchDeepChemModelWrapper):
                 beta2=0.999,
                 mode=self.params.prediction_type,
                 tensorboard=False,
-                uncertainty=self.params.uncertainty)
+                uncertainty=self.params.uncertainty,
+                seed=self.seed)
         else:
             # TODO: Need to check that MultitaskClassifier params are actually being used
             model = MultitaskClassifier(
@@ -2522,7 +2550,8 @@ class MultitaskDCModelWrapper(PytorchDeepChemModelWrapper):
                 beta2=.999,
                 mode=self.params.prediction_type,
                 tensorboard=False,
-                n_classes=self.params.class_number)
+                n_classes=self.params.class_number,
+                seed=self.seed)
 
         return model
 
@@ -2677,7 +2706,7 @@ class GraphConvDCModelWrapper(KerasDeepChemModelWrapper):
 
     """
 
-    def __init__(self, params, featurizer, ds_client):
+    def __init__(self, params, featurizer, ds_client, random_state=None, seed=None):
         """Initializes GraphConvDCModelWrapper object.
 
         Args:
@@ -2710,7 +2739,8 @@ class GraphConvDCModelWrapper(KerasDeepChemModelWrapper):
         self.g = tf.Graph()
         self.sess = tf.compat.v1.Session(graph=self.g)
         self.num_epochs_trained = 0
-
+        self.seed = seed
+        self.random_state = random_state
         self.model = self.recreate_model(model_dir=self.model_dir)
 
     # ****************************************************************************************
@@ -2748,7 +2778,8 @@ class GraphConvDCModelWrapper(KerasDeepChemModelWrapper):
             dense_layer_size=self.params.layer_sizes[-1],
             dropout=self.params.dropouts,
             penalty=self.params.weight_decay_penalty,
-            penalty_type=self.params.weight_decay_penalty_type)
+            penalty_type=self.params.weight_decay_penalty_type,
+            seed=self.seed)
         return model
 
     # ****************************************************************************************
