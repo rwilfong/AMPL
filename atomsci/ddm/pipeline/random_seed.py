@@ -1,6 +1,4 @@
 """ Used to set random seed from parameter_parser for reproducibility. """
-from atomsci.ddm.pipeline import parameter_parser as parse
-import pandas as pd 
 import numpy as np 
 import uuid 
 import random
