@@ -26,7 +26,7 @@ class RandomStateGenerator:
     
     def set_seed(self, seed):
         """Set the seed for all relevant libraries."""
-        #self.seed = seed
+        
         global _seed, _random_state
         _seed = seed
 
